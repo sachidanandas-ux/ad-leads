@@ -112,6 +112,12 @@ tfoot td{font-weight:700;background:var(--surf2)}
 .tat-ok{background:rgba(52,196,122,.15);color:var(--tat-ok)}.tat-e{background:rgba(96,165,250,.15);color:var(--tat-e)}
 .tat-l1{background:rgba(245,166,35,.15);color:var(--tat-l1)}.tat-l2{background:rgba(248,113,113,.15);color:var(--tat-l2)}
 .tat-na{background:var(--surf2);color:var(--muted)}
+/* MTD inline — no row CSS needed */
+/* Loader */
+#loaderOverlay{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* DRILL NUMBERS */
 .dl{font-family:var(--mono);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;transition:opacity .1s}
 .dl:hover{opacity:.7}
@@ -145,9 +151,14 @@ tfoot td{font-weight:700;background:var(--surf2)}
 </style>
 </head>
 <body>
+<div id="loaderOverlay">
+  <div class="spinner"></div>
+  <div style="font-size:.82rem;color:var(--muted)">Loading live data from Google Sheets…</div>
+</div>
+<div id="mainWrap" style="display:none">
 <div class="hdr">
   <h1>AD Forwarded Leads — v7</h1>
-  <p>Fwd volume = forwarded date cohort · Conv ★ = actual closes in period · <span id='refreshedAt'>Loading…</span> · <a href='javascript:location.reload()' style='color:var(--acc);text-decoration:none'>↺ Refresh</a> 12:17:09</p>
+  <p>Fwd volume = forwarded date cohort · Conv ★ = actual closes in period · <span id='refreshedAt'>Loading…</span> 12:17:09</p>
 </div>
 
 <div class="kpis">
@@ -191,6 +202,18 @@ tfoot td{font-weight:700;background:var(--surf2)}
       </div>
     </div>
   </div>
+  <div class="cdiv"></div>
+  <!-- MTD inline control — shown only when meet_date anchor is active -->
+  <div class="cgrp" id="mtdCtrl" style="display:none">
+    <label>MTD cutoff</label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="range" id="mtdSlider" min="1" max="31" value="31"
+        style="width:90px;accent-color:var(--acc);cursor:pointer;height:4px"
+        oninput="onMtdSlide()">
+      <span id="mtdPill" style="font-family:var(--mono);font-size:.82rem;font-weight:700;color:var(--acc);white-space:nowrap;min-width:72px">All days</span>
+    </div>
+  </div>
+  <span id="mtdMax" style="display:none">31</span>
   <div class="cdiv"></div>
   <div class="cgrp">
     <label>Dimension 1</label>
@@ -249,12 +272,24 @@ tfoot td{font-weight:700;background:var(--surf2)}
       </div>
     </div>
   </div>
+  <div class="cgrp">
+    <label>Filter: BDE Agent</label>
+    <div class="ms-wrap"><button class="ms-btn" onclick="toggleMS('fb')"><span id="fblbl">All BDEs</span></button>
+      <div class="ms-drop" id="fbdrop">
+        <input class="ms-srch" placeholder="Search…" oninput="srchMS(this,'fb')">
+        <div class="ms-all" onclick="msAll('fb')"><input type="checkbox" id="fbca" checked>Select all</div>
+        <div id="fbopts"></div>
+      </div>
+    </div>
+  </div>
   <button class="reset-btn" onclick="resetAll()">↺ Reset</button>
 </div>
 
 <div class="cohort-bar" id="cohortBar">
   Showing: <span class="ck" id="cohortLabel">—</span>
 </div>
+
+
 
 <div class="tbl-wrap">
   <div class="stat-ln" id="statln"></div>
@@ -299,155 +334,80 @@ tfoot td{font-weight:700;background:var(--surf2)}
 </div>
 
 
-<div id="loadingMsg" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px">
-  <div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin 0.8s linear infinite"></div>
-  <div style="font-size:.85rem;color:var(--muted)">Loading live data from Google Sheets…</div>
-</div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-<div id="mainContent" style="display:none">
 <script>
+const RAW = [];   // populated by loadData()
+let MN = {};   // populated by loadData()
+let AM = {fwd_date:[], meet_date:[], fv_date:[]};
+let ALL_M = [];
+let AL = {fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
 
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1912717860&single=true&output=csv';
-
-const MN_STATIC = {
-  '2025-09':'Sep 25','2025-10':'Oct 25','2025-11':'Nov 25','2025-12':'Dec 25',
-  '2026-01':'Jan 26','2026-02':'Feb 26','2026-03':'Mar 26','2026-04':'Apr 26',
-  '2026-05':'May 26','2026-06':'Jun 26','2026-07':'Jul 26','2026-08':'Aug 26',
-  '2026-09':'Sep 26','2026-10':'Oct 26','2026-11':'Nov 26','2026-12':'Dec 26',
-  '2027-01':'Jan 27','2027-02':'Feb 27','2027-03':'Mar 27',
-};
-
-function parseDate(s){
-  if(!s||!s.trim())return null;
-  s=s.trim();
-  let m;
-  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})/)))return s.slice(0,10);
-  if((m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)))return `${m[3]}-${m[2]}-${m[1]}`;
-  return null;
-}
-
-function parseDays(meet, visit){
-  if(!meet||!visit)return null;
-  const d1=new Date(meet), d2=new Date(visit);
-  if(isNaN(d1)||isNaN(d2))return null;
-  return Math.round((d2-d1)/(1000*60*60*24));
-}
-
-function parseCSV(text){
-  const lines=text.split('\n');
-  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
-  const records=[];
-  for(let i=1;i<lines.length;i++){
-    const line=lines[i];
-    if(!line.trim())continue;
-    // Simple CSV parse: handle quoted fields
-    const cols=[];
-    let cur='',inQ=false;
-    for(let c=0;c<line.length;c++){
-      const ch=line[c];
-      if(ch==='"'){inQ=!inQ;}
-      else if(ch===','&&!inQ){cols.push(cur);cur='';}
-      else cur+=ch;
-    }
-    cols.push(cur);
-    const r={};
-    headers.forEach((h,idx)=>r[h]=(cols[idx]||'').replace(/^"|"$/g,'').trim());
-    const fwdRaw=r['forwarded_Spoors - AD']||'';
-    const fwd=parseDate(fwdRaw);
-    if(!fwd)continue;
-    const meet=parseDate(r['Meeting Date - forward lead']||'');
-    const fv=parseDate(r['First Visit Date']||'');
-    const cv=parseDate(r['lead_converted_at']||'');
-    const cm1=(r['CM Meetings Remarks']||'').trim();
-    const cm2=(r['CM Remark']||'').trim();
-    records.push({
-      city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
-      source:(r['Source']||'').trim()||'(blank)',
-      tele:(r['forwarded_by']||'').trim()||'(blank)',
-      bde:(r['agent_mail']||'').trim()||'(blank)',
-      met:(r['Visited']||'').trim().toUpperCase()==='TRUE'?1:0,
-      verified:(r['Verified?']||'').trim()==='Business Verified'?1:0,
-      fwd_date:fwd, meet_date:meet||'', fv_date:fv||'', cv_date:cv||'',
-      tat:parseDays(meet,fv),
-      phone:(r['Lead Phone']||'').trim(),
-      biz_name:(r['business_name']||'').trim(),
-      remark:(r['Tele-Agent Remark - forward lead']||'').trim(),
-      cm_remark:[cm1,cm2].filter(Boolean).join(' | '),
-      tl:(r['team_lead_email']||'').trim(),
-      row_num:i+1,
-    });
-  }
-  return records;
-}
-
-function computeMonths(records){
-  const fwd_months=[...new Set(records.map(r=>r.fwd_date.slice(0,7)).filter(Boolean))].sort();
-  const meet_months=[...new Set(records.map(r=>r.meet_date.slice(0,7)).filter(Boolean))].sort();
-  const fv_months=[...new Set(records.map(r=>r.fv_date.slice(0,7)).filter(Boolean))].sort();
-  const all_months=[...new Set([...fwd_months,...meet_months,...fv_months])].sort();
-  return {fwd_months,meet_months,fv_months,all_months};
-}
-
-let RAW=[];
-let AM={fwd_date:[],meet_date:[],fv_date:[]};
-let ALL_M=[];
-let MN={};
-
-async function loadData(){
-  document.getElementById('loadingMsg').style.display='flex';
-  document.getElementById('mainContent').style.display='none';
-  try{
-    const res=await fetch(CSV_URL);
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const text=await res.text();
-    RAW=parseCSV(text);
-    const m=computeMonths(RAW);
-    AM={fwd_date:m.fwd_months,meet_date:m.meet_months,fv_date:m.fv_months};
-    ALL_M=m.all_months;
-    // Build MN from actual months in data
-    MN={};
-    ALL_M.forEach(mo=>{
-      MN[mo]=MN_STATIC[mo]||mo;
-    });
-    document.getElementById('loadingMsg').style.display='none';
-    document.getElementById('mainContent').style.display='block';
-    document.getElementById('refreshedAt').textContent='Last refreshed: '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    initApp();
-  }catch(e){
-    document.getElementById('loadingMsg').innerHTML=`
-      <div style="text-align:center;padding:40px">
-        <div style="font-size:1.2rem;color:var(--cv);margin-bottom:8px">⚠ Could not load data</div>
-        <div style="font-size:.8rem;color:var(--muted);margin-bottom:16px">${e.message}</div>
-        <div style="font-size:.75rem;color:var(--muted)">Make sure the Google Sheet is published to web.<br>Then <a href="javascript:location.reload()" style="color:var(--acc)">refresh the page</a>.</div>
-      </div>`;
-  }
-}
-
-
-const AL = {fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
-
-// Row store — avoids inline JSON in onclick attributes entirely
+// Row store for drill-down
 const ROWS = {};
 let rowIdx = 0;
 function storeLeads(leads){ const k='r'+(rowIdx++); ROWS[k]=leads; return k; }
 
 function uniq(f){return[...new Set(RAW.map(r=>r[f]))].filter(Boolean).sort((a,b)=>a.localeCompare(b))}
 let U={city:[],source:[],tele:[],bde:[]};
-const sel={fc:new Set(),fs:new Set(),ft:new Set()};
+const sel={fc:new Set(U.city),fs:new Set(U.source),ft:new Set(U.tele),fb:new Set(U.bde)};
 let dim1='overall',dim2='overall',dateAnchor='fwd_date',selMonth=null,sortCol=1,sortDir=-1;
+let mtdDay=31;
 const DL={overall:'Overall',city:'City',source:'Source',tele:'Tele-Agent',bde:'BDE Agent'};
 
+// ── MTD ──────────────────────────────────────────────────────────────
+function getDaysInMonth(ym){
+  if(!ym)return 31;
+  const[y,m]=ym.split('-').map(Number);
+  return new Date(y,m,0).getDate();
+}
+function updateMtdSlider(){
+  const ctrl=document.getElementById('mtdCtrl');
+  const slider=document.getElementById('mtdSlider');
+  const maxLbl=document.getElementById('mtdMax');
+  if(selMonth && dateAnchor==='meet_date'){
+    ctrl.style.display='flex';
+    const days=getDaysInMonth(selMonth);
+    slider.max=days; maxLbl.textContent=days;
+    const todayYM=new Date().toISOString().slice(0,7);
+    if(selMonth===todayYM){ slider.value=Math.min(new Date().getDate(),days); }
+    else { slider.value=days; }
+    mtdDay=parseInt(slider.value);
+    updateMtdPill();
+  } else {
+    ctrl.style.display='none'; mtdDay=31;
+  }
+}
+function onMtdSlide(){
+  mtdDay=parseInt(document.getElementById('mtdSlider').value);
+  updateMtdPill(); render();
+}
+function updateMtdPill(){
+  const pill=document.getElementById('mtdPill');
+  const maxVal=parseInt(document.getElementById('mtdSlider').max);
+  if(mtdDay>=maxVal){
+    pill.textContent='All days';
+    pill.style.color='var(--muted)';
+    pill.style.fontSize='.82rem';
+  } else {
+    const d=String(mtdDay).padStart(2,'0');
+    // Show as "16 Nov" style — short and readable
+    const monthLabel=MN[selMonth]||selMonth;
+    pill.textContent=`≤ ${d} ${monthLabel}`;
+    pill.style.color='var(--acc)';
+    pill.style.fontSize='.88rem';
+  }
+}
+
+// ── Month strip ───────────────────────────────────────────────────────
 function buildMonthStrip(){
   const avail=new Set(AM[dateAnchor]);
   document.getElementById('mstrip').innerHTML=
     `<button class="mall ${!selMonth?'active':''}" onclick="pickMonth(null)">All months</button>`+
     ALL_M.map(m=>{
       const ok=avail.has(m);
-      return`<button class="mbtn${ok?(selMonth===m?' active':''):' na'}" onclick="${ok?`pickMonth('${m}')`:''}">
-        ${MN[m]||m}</button>`;
+      return`<button class="mbtn${ok?(selMonth===m?' active':''):' na'}" onclick="${ok?`pickMonth('${m}')`:''}">${MN[m]||m}</button>`;
     }).join('');
 }
-function pickMonth(m){selMonth=m;buildMonthStrip();updateCohortBar();render();}
+function pickMonth(m){selMonth=m;buildMonthStrip();updateCohortBar();updateMtdSlider();render();}
 function updateCohortBar(){
   const bar=document.getElementById('cohortBar');
   if(!selMonth){bar.style.display='none';return;}
@@ -455,6 +415,8 @@ function updateCohortBar(){
   document.getElementById('cohortLabel').textContent=
     `${MN[selMonth]||selMonth} — volume anchor: ${AL[dateAnchor]} · conversions: closed in ${MN[selMonth]||selMonth}`;
 }
+
+// ── Single select ─────────────────────────────────────────────────────
 function toggleCS(id){
   const open=document.getElementById(id+'drop').classList.contains('open');
   closeAll();
@@ -465,7 +427,7 @@ function pickAnchor(val,lbl){
   document.querySelectorAll('#dAdrop .cs-item').forEach(el=>el.classList.toggle('active',el.dataset.val===val));
   document.getElementById('dAbtn').textContent=lbl;
   if(selMonth&&!AM[val].includes(selMonth))selMonth=null;
-  closeAll();buildMonthStrip();updateCohortBar();render();
+  closeAll();buildMonthStrip();updateCohortBar();updateMtdSlider();render();
 }
 function pickDim(n,val,lbl){
   if(n===1)dim1=val; else dim2=val;
@@ -481,10 +443,13 @@ function closeAll(){
 document.addEventListener('click',e=>{
   if(!e.target.closest('.cs-wrap')&&!e.target.closest('.ms-wrap')&&!e.target.closest('.modal'))closeAll();
 });
+
+// ── Multi select ──────────────────────────────────────────────────────
 const MC={
-  fc:{all:()=>U.city,lbl:'fclbl',ca:'fcca',opts:'fcopts',def:'All cities'},
+  fc:{all:()=>U.city,  lbl:'fclbl',ca:'fcca',opts:'fcopts',def:'All cities'},
   fs:{all:()=>U.source,lbl:'fslbl',ca:'fsca',opts:'fsopts',def:'All sources'},
-  ft:{all:()=>U.tele,lbl:'ftlbl',ca:'ftca',opts:'ftopts',def:'All tele-agents'}
+  ft:{all:()=>U.tele,  lbl:'ftlbl',ca:'ftca',opts:'ftopts',def:'All tele-agents'},
+  fb:{all:()=>U.bde,   lbl:'fblbl',ca:'fbca',opts:'fbopts',def:'All BDEs'}
 };
 function buildMS(id){
   const{all,opts}=MC[id];
@@ -505,19 +470,26 @@ function msAll(id){const all=MC[id].all();sel[id]=sel[id].size===all.length?new 
 function updateMSLbl(id){const all=MC[id].all();const n=sel[id].size;document.getElementById(MC[id].lbl).innerHTML=n===all.length?MC[id].def:`<span class="badge">${n}</span> selected`;}
 function resetAll(){
   Object.keys(MC).forEach(id=>{sel[id]=new Set(MC[id].all());buildMS(id);updateMSLbl(id);});
-  selMonth=null;pickAnchor('fwd_date','Forwarded Date');
+  selMonth=null;mtdDay=31;
+  pickAnchor('fwd_date','Forwarded Date');
   pickDim(1,'overall','Overall');pickDim(2,'overall','Overall');
+  updateMtdSlider();
 }
 
+// ── Data pools ────────────────────────────────────────────────────────
 function volPool(){
   return RAW.filter(r=>{
-    if(!sel.fc.has(r.city)||!sel.fs.has(r.source)||!sel.ft.has(r.tele))return false;
+    if(!sel.fc.has(r.city)||!sel.fs.has(r.source)||!sel.ft.has(r.tele)||!sel.fb.has(r.bde))return false;
     if(selMonth){const d=r[dateAnchor];if(!d||!d.startsWith(selMonth))return false;}
+    if(selMonth&&dateAnchor==='meet_date'&&r.meet_date){
+      const day=parseInt(r.meet_date.slice(8,10));
+      if(day>mtdDay)return false;
+    }
     return true;
   });
 }
 function cvPool(){
-  return RAW.filter(r=>r.cv_date&&sel.fc.has(r.city)&&sel.fs.has(r.source)&&sel.ft.has(r.tele)&&
+  return RAW.filter(r=>r.cv_date&&sel.fc.has(r.city)&&sel.fs.has(r.source)&&sel.ft.has(r.tele)&&sel.fb.has(r.bde)&&
     (!selMonth||r.cv_date.startsWith(selMonth)));
 }
 function getVal(r,dim){
@@ -536,7 +508,7 @@ function tatChip(v,n){
   return`<span class="tat-chip ${cls}">${lbl}<small style="font-size:.6rem;margin-left:3px;opacity:.7">n=${n}</small></span>`;
 }
 
-// Modal — uses stored key, never inline data
+// ── Modal ─────────────────────────────────────────────────────────────
 let modalAll=[];
 function drillDown(key,typeLabel,color,context){
   const leads=ROWS[key]||[];
@@ -580,12 +552,10 @@ function renderModalRows(leads){
 }
 function filterModal(){
   const q=document.getElementById('modalSearch').value.toLowerCase();
-  renderModalRows(q?modalAll.filter(r=>
-    (r.biz_name||'').toLowerCase().includes(q)||(r.phone||'').includes(q)||
+  renderModalRows(q?modalAll.filter(r=>(r.biz_name||'').toLowerCase().includes(q)||(r.phone||'').includes(q)||
     r.tele.toLowerCase().includes(q)||r.bde.toLowerCase().includes(q)||
     r.city.toLowerCase().includes(q)||r.source.toLowerCase().includes(q)||
-    (r.remark||'').toLowerCase().includes(q)
-  ):modalAll);
+    (r.remark||'').toLowerCase().includes(q)):modalAll);
 }
 function getVisibleLeads(){
   const q=document.getElementById('modalSearch').value.toLowerCase();
@@ -606,11 +576,10 @@ function downloadModal(){
     r.met?'Yes':'No',r.verified?'Yes':'No',r.cv_date||'',
     r.tat!==null?r.tat:'',r.remark||'',r.cm_remark||'',r.row_num
   ]);
-  const csvContent=[cols,...dataRows].map(row=>
+  const csv=[cols,...dataRows].map(row=>
     row.map(v=>{const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')
   ).join('\r\n');
-  const BOM='\uFEFF';
-  const blob=new Blob([BOM+csvContent],{type:'text/csv;charset=utf-8'});
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=`AD_Leads_${title}_${new Date().toISOString().slice(0,10)}.csv`;
@@ -620,71 +589,66 @@ function downloadModal(){
 function closeModal(){document.getElementById('modalBg').classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
-function render(){
-  // Clear stored row keys each render
-  Object.keys(ROWS).forEach(k=>delete ROWS[k]);
-  rowIdx=0;
+// ── Pivot render ──────────────────────────────────────────────────────
+function buildPivotRows(vRecs,cRecs){
+  const bothOvr=dim1==='overall'&&dim2==='overall';
+  const showD2=dim1!=='overall'&&dim2!=='overall'&&dim1!==dim2;
+  const effDim=dim1!=='overall'?dim1:dim2;
+  if(bothOvr){
+    const tats=vRecs.filter(r=>r.tat!==null).map(r=>r.tat);
+    return[{d1:'Overall',d2:'',fwdR:vRecs,metR:vRecs.filter(r=>r.met),bvR:vRecs.filter(r=>r.verified),cvR:cRecs,tats}];
+  }
+  const vm={};
+  vRecs.forEach(r=>{
+    const k=showD2?getVal(r,dim1)+'|||'+getVal(r,dim2):getVal(r,effDim);
+    if(!vm[k])vm[k]={d1:'',d2:'',fwdR:[],metR:[],bvR:[],tats:[]};
+    const[d1p,d2p]=k.includes('|||')?k.split('|||'):[k,''];
+    vm[k].d1=d1p;vm[k].d2=d2p;
+    vm[k].fwdR.push(r);
+    if(r.met)vm[k].metR.push(r);
+    if(r.verified)vm[k].bvR.push(r);
+    if(r.tat!==null)vm[k].tats.push(r.tat);
+  });
+  const cm={};
+  cRecs.forEach(r=>{
+    const k=showD2?getVal(r,dim1)+'|||'+getVal(r,dim2):getVal(r,effDim);
+    if(!cm[k])cm[k]=[];cm[k].push(r);
+  });
+  const keys=new Set([...Object.keys(vm),...Object.keys(cm)]);
+  return[...keys].map(k=>{
+    const v=vm[k]||{d1:k,d2:'',fwdR:[],metR:[],bvR:[],tats:[]};
+    const[d1p,d2p]=k.includes('|||')?k.split('|||'):[k,''];
+    return{d1:d1p,d2:d2p,fwdR:v.fwdR,metR:v.metR,bvR:v.bvR,cvR:cm[k]||[],tats:v.tats};
+  });
+}
 
-  const vRecs=volPool();
-  const cRecs=cvPool();
-  const totFwd=vRecs.length;
-  const totMetR=vRecs.filter(r=>r.met);
-  const totBvR=vRecs.filter(r=>r.verified);
-  const totCvR=cRecs;
+function render(){
+  Object.keys(ROWS).forEach(k=>delete ROWS[k]); rowIdx=0;
+  const vRecs=volPool(), cRecs=cvPool();
+  const totFwd=vRecs.length, totMetR=vRecs.filter(r=>r.met);
+  const totBvR=vRecs.filter(r=>r.verified), totCvR=cRecs;
   const allTats=vRecs.filter(r=>r.tat!==null).map(r=>r.tat);
   const avgTat=allTats.length?(allTats.reduce((a,b)=>a+b,0)/allTats.length).toFixed(1):null;
 
   document.getElementById('kf').textContent=fmt(totFwd);
   document.getElementById('kfs').textContent=selMonth?(MN[selMonth]||selMonth)+' ('+AL[dateAnchor]+')':'All time';
-  document.getElementById('km').textContent=fmt(totMetR.length);document.getElementById('kms').textContent=pct(totMetR.length,totFwd)+'% of forwarded';
-  document.getElementById('kb').textContent=fmt(totBvR.length);document.getElementById('kbs').textContent=pct(totBvR.length,totMetR.length)+'% of met';
+  document.getElementById('km').textContent=fmt(totMetR.length);
+  document.getElementById('kms').textContent=pct(totMetR.length,totFwd)+'% of forwarded';
+  document.getElementById('kb').textContent=fmt(totBvR.length);
+  document.getElementById('kbs').textContent=pct(totBvR.length,totMetR.length)+'% of met';
   document.getElementById('kc').textContent=fmt(totCvR.length);
   document.getElementById('kcs').textContent=selMonth?'closed in '+(MN[selMonth]||selMonth):'all-time closes';
   document.getElementById('kt').textContent=avgTat!==null?(+avgTat>0?'+':'')+avgTat+'d':'—';
   document.getElementById('kts').textContent=`Meet→Visit (n=${allTats.length})`;
 
   const showD2=dim1!=='overall'&&dim2!=='overall'&&dim1!==dim2;
-  const bothOvr=dim1==='overall'&&dim2==='overall';
-  const effDim=dim1!=='overall'?dim1:dim2;
-
-  // Build pivot map
-  let pivotRows=[];
-  if(bothOvr){
-    pivotRows=[{d1:'Overall',d2:'',fwdR:vRecs,metR:totMetR,bvR:totBvR,cvR:totCvR,tats:allTats}];
-  } else {
-    const vm={};
-    vRecs.forEach(r=>{
-      const k=showD2?getVal(r,dim1)+'|||'+getVal(r,dim2):getVal(r,effDim);
-      if(!vm[k])vm[k]={d1:'',d2:'',fwdR:[],metR:[],bvR:[],tats:[]};
-      const[d1p,d2p]=k.includes('|||')?k.split('|||'):[k,''];
-      vm[k].d1=d1p;vm[k].d2=d2p;
-      vm[k].fwdR.push(r);
-      if(r.met)vm[k].metR.push(r);
-      if(r.verified)vm[k].bvR.push(r);
-      if(r.tat!==null)vm[k].tats.push(r.tat);
-    });
-    const cm={};
-    cRecs.forEach(r=>{
-      const k=showD2?getVal(r,dim1)+'|||'+getVal(r,dim2):getVal(r,effDim);
-      if(!cm[k])cm[k]=[];cm[k].push(r);
-    });
-    const keys=new Set([...Object.keys(vm),...Object.keys(cm)]);
-    keys.forEach(k=>{
-      const v=vm[k]||{d1:k,d2:'',fwdR:[],metR:[],bvR:[],tats:[]};
-      const[d1p,d2p]=k.includes('|||')?k.split('|||'):[k,''];
-      pivotRows.push({d1:d1p,d2:d2p,fwdR:v.fwdR,metR:v.metR,bvR:v.bvR,cvR:cm[k]||[],tats:v.tats});
-    });
-  }
-  if(!pivotRows.some(r=>r.cvR))pivotRows.forEach(r=>{if(!r.cvR)r.cvR=[];});
-
-  pivotRows=pivotRows.map(r=>({...r,
-    fwd:r.fwdR.length,met:r.metR.length,bv:r.bvR.length,cv:r.cvR.length,
-    met_pct:pct(r.metR.length,r.fwdR.length),
-    bv_pct:pct(r.bvR.length,r.metR.length),
-    cv_pct:pct(r.cvR.length,r.bvR.length),
-    avg_tat:r.tats.length?+(r.tats.reduce((a,b)=>a+b,0)/r.tats.length).toFixed(1):null,
-    tat_n:r.tats.length
-  }));
+  let pivotRows=buildPivotRows(vRecs,cRecs);
+  pivotRows=pivotRows.map(r=>{
+    const tav=r.tats.length?+(r.tats.reduce((a,b)=>a+b,0)/r.tats.length).toFixed(1):null;
+    return{...r,fwd:r.fwdR.length,met:r.metR.length,bv:r.bvR.length,cv:r.cvR.length,
+      met_pct:pct(r.metR.length,r.fwdR.length),bv_pct:pct(r.bvR.length,r.metR.length),
+      cv_pct:pct(r.cvR.length,r.bvR.length),avg_tat:tav,tat_n:r.tats.length};
+  });
 
   const SK=['d1','fwd','met_pct','met','bv_pct','bv','cv','cv_pct','avg_tat'];
   pivotRows.sort((a,b)=>{
@@ -695,9 +659,8 @@ function render(){
 
   const d1lbl=dim1!=='overall'?DL[dim1]:(dim2!=='overall'?DL[dim2]:'Overall');
   const ctx=selMonth?(MN[selMonth]||selMonth)+' · '+AL[dateAnchor]:'All time';
-  function ch(i,t,extra=''){return`<th onclick="srt(${i})" class="${extra} ${sortCol===i?(sortDir===-1?'sd':'sa'):''}">${t}</th>`}
+  function ch(i,t,extra=''){return`<th onclick="srt(${i})" class="${extra} ${sortCol===i?(sortDir===-1?'sd':'sa'):''} ">${t}</th>`;}
 
-  // colgroup
   let cg=`<col class="c-dim">`;
   if(showD2)cg+=`<col class="c-dim">`;
   cg+=`<col class="c-num"><col class="c-bar"><col class="c-num"><col class="c-bar"><col class="c-num"><col class="c-num"><col class="c-bar"><col class="c-tat">`;
@@ -713,33 +676,33 @@ function render(){
 
   document.getElementById('tbody').innerHTML=pivotRows.map(r=>{
     const lbl=showD2?`${r.d1} × ${r.d2}`:r.d1;
-    const kFwd=storeLeads(r.fwdR), kMet=storeLeads(r.metR), kBv=storeLeads(r.bvR), kCv=storeLeads(r.cvR);
+    const kFwd=storeLeads(r.fwdR),kMet=storeLeads(r.metR),kBv=storeLeads(r.bvR),kCv=storeLeads(r.cvR);
     return`<tr>
       <td class="dc left" title="${r.d1}">${r.d1}</td>
       ${showD2?`<td class="dc left" title="${r.d2}">${r.d2}</td>`:''}
-      <td><span class="dl dl-fwd" onclick="drillDown('${kFwd}','Forwarded — ${lbl}','var(--acc)','${ctx} — all forwarded')">${fmt(r.fwd)}</span></td>
+      <td><span class="dl dl-fwd" onclick="drillDown('${kFwd}','Forwarded — ${lbl.replace(/'/g,"\'")}',' var(--acc)','${ctx} — all forwarded')">${fmt(r.fwd)}</span></td>
       <td>${bar(r.met_pct,'bm')}</td>
-      <td><span class="dl dl-met" onclick="drillDown('${kMet}','Met — ${lbl}','var(--met)','${ctx} — visited leads')">${fmt(r.met)}</span></td>
+      <td><span class="dl dl-met" onclick="drillDown('${kMet}','Met — ${lbl.replace(/'/g,"\'")}',' var(--met)','${ctx} — visited')">${fmt(r.met)}</span></td>
       <td>${bar(r.bv_pct,'bvv')}</td>
-      <td><span class="dl dl-bv" onclick="drillDown('${kBv}','Biz Verified — ${lbl}','var(--bv)','${ctx} — business verified')">${fmt(r.bv)}</span></td>
-      <td><span class="dl dl-cv" onclick="drillDown('${kCv}','Conv ★ — ${lbl}','var(--cv)','${ctx} — conversions closed')">${fmt(r.cv)}</span></td>
+      <td><span class="dl dl-bv" onclick="drillDown('${kBv}','Biz Verified — ${lbl.replace(/'/g,"\'")}',' var(--bv)','${ctx} — biz verified')">${fmt(r.bv)}</span></td>
+      <td><span class="dl dl-cv" onclick="drillDown('${kCv}','Conv ★ — ${lbl.replace(/'/g,"\'")}',' var(--cv)','${ctx} — conversions closed')">${fmt(r.cv)}</span></td>
       <td>${bar(r.cv_pct,'bcv')}</td>
       <td>${tatChip(r.avg_tat,r.tat_n)}</td>
     </tr>`;
   }).join('');
 
-  const kTotFwd=storeLeads(vRecs), kTotMet=storeLeads(totMetR), kTotBv=storeLeads(totBvR), kTotCv=storeLeads(totCvR);
-  const ftats=allTats, ftavg=ftats.length?+(ftats.reduce((a,b)=>a+b,0)/ftats.length).toFixed(1):null;
+  const kTF=storeLeads(vRecs),kTM=storeLeads(totMetR),kTB=storeLeads(totBvR),kTC=storeLeads(totCvR);
+  const ftavg=allTats.length?+(allTats.reduce((a,b)=>a+b,0)/allTats.length).toFixed(1):null;
   document.getElementById('tfoot').innerHTML=`<tr>
     <td class="left" colspan="${showD2?2:1}">TOTAL</td>
-    <td><span class="dl dl-fwd" onclick="drillDown('${kTotFwd}','Forwarded — Total','var(--acc)','${ctx}')">${fmt(totFwd)}</span></td>
+    <td><span class="dl dl-fwd" onclick="drillDown('${kTF}','Forwarded — Total','var(--acc)','${ctx}')">${fmt(totFwd)}</span></td>
     <td>${bar(pct(totMetR.length,totFwd),'bm')}</td>
-    <td><span class="dl dl-met" onclick="drillDown('${kTotMet}','Met — Total','var(--met)','${ctx}')">${fmt(totMetR.length)}</span></td>
+    <td><span class="dl dl-met" onclick="drillDown('${kTM}','Met — Total','var(--met)','${ctx}')">${fmt(totMetR.length)}</span></td>
     <td>${bar(pct(totBvR.length,totMetR.length),'bvv')}</td>
-    <td><span class="dl dl-bv" onclick="drillDown('${kTotBv}','Biz Verified — Total','var(--bv)','${ctx}')">${fmt(totBvR.length)}</span></td>
-    <td><span class="dl dl-cv" onclick="drillDown('${kTotCv}','Conv ★ — Total','var(--cv)','${ctx}')">${fmt(totCvR.length)}</span></td>
+    <td><span class="dl dl-bv" onclick="drillDown('${kTB}','Biz Verified — Total','var(--bv)','${ctx}')">${fmt(totBvR.length)}</span></td>
+    <td><span class="dl dl-cv" onclick="drillDown('${kTC}','Conv ★ — Total','var(--cv)','${ctx}')">${fmt(totCvR.length)}</span></td>
     <td>${bar(pct(totCvR.length,totBvR.length),'bcv')}</td>
-    <td>${tatChip(ftavg,ftats.length)}</td>
+    <td>${tatChip(ftavg,allTats.length)}</td>
   </tr>`;
 
   document.getElementById('statln').textContent=
@@ -747,14 +710,110 @@ function render(){
 }
 function srt(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}render();}
 
+// Init — called after data loads
 function initApp(){
-  U={city:uniq("city"),source:uniq("source"),tele:uniq("tele"),bde:uniq("bde")};
-  Object.keys(MC).forEach(id=>{sel[id]=new Set(uniq(id==='fc'?'city':id==='fs'?'source':'tele'));buildMS(id);updateMSLbl(id);});
+  U={city:uniq('city'),source:uniq('source'),tele:uniq('tele'),bde:uniq('bde')};
+  sel.fc=new Set(U.city);sel.fs=new Set(U.source);sel.ft=new Set(U.tele);sel.fb=new Set(U.bde);
+  Object.keys(MC).forEach(id=>{buildMS(id);updateMSLbl(id);});
   buildMonthStrip();
+  updateMtdSlider();
   render();
 }
+// ── Live data loader ─────────────────────────────────────────────────
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1912717860&single=true&output=csv';
+const MN_STATIC = {"2025-09": "Sep 25", "2025-10": "Oct 25", "2025-11": "Nov 25", "2025-12": "Dec 25", "2026-01": "Jan 26", "2026-02": "Feb 26", "2026-03": "Mar 26", "2026-04": "Apr 26", "2026-05": "May 26", "2026-06": "Jun 26", "2026-07": "Jul 26", "2026-08": "Aug 26", "2026-09": "Sep 26", "2026-10": "Oct 26", "2026-11": "Nov 26", "2026-12": "Dec 26", "2027-01": "Jan 27", "2027-02": "Feb 27", "2027-03": "Mar 27"};
+
+function parseDate(s){
+  if(!s||!s.trim())return null; s=s.trim();
+  if(s.match(/^\d{4}-\d{2}-\d{2}/))return s.slice(0,10);
+  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m?`${m[3]}-${m[2]}-${m[1]}`:null;
+}
+function parseTat(meet,visit){
+  if(!meet||!visit)return null;
+  const d1=new Date(meet),d2=new Date(visit);
+  return isNaN(d1)||isNaN(d2)?null:Math.round((d2-d1)/86400000);
+}
+function parseCSV(text){
+  const lines=text.split(/\r?\n/);
+  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+  const records=[];
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i]; if(!line.trim())continue;
+    const cols=[];let cur='',inQ=false;
+    for(let c=0;c<line.length;c++){
+      const ch=line[c];
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){cols.push(cur);cur='';}
+      else cur+=ch;
+    }
+    cols.push(cur);
+    const r={};
+    headers.forEach((h,idx)=>r[h]=(cols[idx]||'').replace(/^"|"$/g,'').trim());
+    const fwd=parseDate(r['forwarded_Spoors - AD']||'');
+    if(!fwd)continue;
+    const meet=parseDate(r['Meeting Date - forward lead']||'');
+    const fv=parseDate(r['First Visit Date']||'');
+    const cv=parseDate(r['lead_converted_at']||'');
+    const cm1=(r['CM Meetings Remarks']||'').trim();
+    const cm2=(r['CM Remark']||'').trim();
+    records.push({
+      city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
+      source:(r['Source']||'').trim()||'(blank)',
+      tele:(r['forwarded_by']||'').trim()||'(blank)',
+      bde:(r['agent_mail']||'').trim()||'(blank)',
+      met:(r['Visited']||'').trim().toUpperCase()==='TRUE'?1:0,
+      verified:(r['Verified?']||'').trim()==='Business Verified'?1:0,
+      fwd_date:fwd, meet_date:meet||'', fv_date:fv||'', cv_date:cv||'',
+      tat:parseTat(meet,fv),
+      phone:(r['Lead Phone']||'').trim(),
+      biz_name:(r['business_name']||'').trim(),
+      remark:(r['Tele-Agent Remark - forward lead']||'').trim(),
+      cm_remark:[cm1,cm2].filter(Boolean).join(' | '),
+      tl:(r['team_lead_email']||'').trim(),
+      row_num:i+1,
+    });
+  }
+  return records;
+}
+function computeMonthMeta(recs){
+  const f=field=>[...new Set(recs.map(r=>r[field].slice(0,7)).filter(Boolean))].sort();
+  const fwd=f('fwd_date'),meet=f('meet_date'),fv=f('fv_date');
+  const all=[...new Set([...fwd,...meet,...fv])].sort();
+  const mn={};
+  all.forEach(mo=>{mn[mo]=MN_STATIC[mo]||mo;});
+  return{fwd,meet,fv,all,mn};
+}
+async function loadData(){
+  const loader=document.getElementById('loaderOverlay');
+  const main=document.getElementById('mainWrap');
+  loader.style.display='flex'; main.style.display='none';
+  try{
+    const res=await fetch(CSV_URL);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const text=await res.text();
+    const parsed=parseCSV(text);
+    RAW.push(...parsed);
+    const meta=computeMonthMeta(RAW);
+    AM.fwd_date=meta.fwd; AM.meet_date=meta.meet; AM.fv_date=meta.fv;
+    ALL_M.push(...meta.all);
+    Object.assign(MN,meta.mn);
+    document.getElementById('refreshedAt').textContent=
+      'Live · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    loader.style.display='none'; main.style.display='block';
+    initApp();
+  }catch(e){
+    loader.innerHTML=`<div style="text-align:center;padding:40px 24px">
+      <div style="font-size:1.1rem;color:var(--cv);margin-bottom:8px">⚠ Could not load data</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:16px">${e.message}</div>
+      <a href="javascript:location.reload()" style="color:var(--acc);font-size:.8rem">↺ Try again</a>
+    </div>`;
+  }
+}
 loadData();
+
 </script>
+</div><!-- /mainWrap -->
+
 </body>
 </html>
-</div><!-- end mainContent -->
