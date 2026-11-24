@@ -7,14 +7,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
+  --bg:#f0f2f8;--surf:#fff;--surf2:#f5f6fb;--border:#dde1ee;
+  --text:#1a1d2e;--muted:#6b7394;--acc:#3b6fe0;--acc-dim:rgba(59,111,224,.09);
+  --met:#16a34a;--bv:#d97706;--cv:#dc2626;--tat:#7c3aed;
+  --tat-ok:#16a34a;--tat-l1:#d97706;--tat-l2:#dc2626;--tat-e:#2563eb;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);
+}
+@media(prefers-color-scheme:dark){:root{
   --bg:#0f1117;--surf:#181c26;--surf2:#1f2435;--border:#252d42;
   --text:#e8eaf0;--muted:#6b7799;--acc:#4f7fff;--acc-dim:rgba(79,127,255,.13);
   --met:#34c47a;--bv:#f5a623;--cv:#e05c7a;--tat:#a78bfa;
   --tat-ok:#34c47a;--tat-l1:#f5a623;--tat-l2:#f87171;--tat-e:#60a5fa;
-  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;
-}
-@media(prefers-color-scheme:light){:root{
-  --bg:#f0f2f8;--surf:#fff;--surf2:#f5f6fb;--border:#dde1ee;--text:#1a1d2e;--muted:#6b7394;--acc-dim:rgba(79,127,255,.08);
+  --shadow:0 1px 3px rgba(0,0,0,.3);--shadow-md:0 4px 12px rgba(0,0,0,.4);
 }}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px;font-family:var(--sans);background:var(--bg);color:var(--text)}
@@ -25,7 +31,7 @@ body{min-height:100vh;padding-bottom:60px}
 /* KPIs */
 .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:14px 24px 0}
 @media(max-width:700px){.kpis{grid-template-columns:repeat(3,1fr)}}
-.kpi{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.kpi{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow)}
 .kpi .v{font-family:var(--mono);font-size:1.35rem;font-weight:600;line-height:1}
 .kpi .l{font-size:.63rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
 .kpi .s{font-size:.68rem;color:var(--muted);margin-top:4px}
@@ -86,7 +92,7 @@ body{min-height:100vh;padding-bottom:60px}
 /* TABLE — fixed column layout */
 .tbl-wrap{padding:12px 24px 0}
 .stat-ln{font-size:.68rem;color:var(--muted);margin-bottom:6px}
-.tbl-scroll{overflow-x:auto;border-radius:10px;border:1px solid var(--border);background:var(--surf)}
+.tbl-scroll{overflow-x:auto;border-radius:12px;border:1px solid var(--border);background:var(--surf);box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse;font-size:.77rem;table-layout:fixed}
 col.c-dim{width:200px}
 col.c-num{width:90px}
@@ -152,26 +158,30 @@ tfoot td{font-weight:700;background:var(--surf2)}
 .tab-pane{display:none}.tab-pane.active{display:block}
 .an-kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;padding:14px 24px 0}
 @media(max-width:900px){.an-kpis{grid-template-columns:repeat(4,1fr)}}
-.k-hot .v{color:#34c47a}.k-cold .v{color:#60a5fa}.k-fake .v{color:#f87171}
+.k-hot .v{color:#16a34a}.k-cold .v{color:#2563eb}.k-fake .v{color:#dc2626}
 .k-pushed .v{color:var(--acc)}.k-conv .v{color:var(--cv)}
-.funnel-row{display:flex;align-items:center;gap:0;overflow-x:auto;padding:0 24px;margin:8px 0 0;flex-wrap:nowrap}
-.f-stage{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;min-width:88px;flex-shrink:0}
-.f-stage .fv{font-family:var(--mono);font-size:1.1rem;font-weight:600}
-.f-stage .fl{font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:2px}
-.f-stage .fp{font-size:.63rem;color:var(--muted);margin-top:2px}
-.f-arr{color:var(--muted);font-size:1rem;padding:0 3px;flex-shrink:0;align-self:center}
-.an-legend{display:flex;gap:10px;flex-wrap:wrap;padding:6px 24px 0;font-size:.67rem;color:var(--muted)}
+/* Funnel bar — compact horizontal flow */
+.funnel-row{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:12px 24px 0;flex-wrap:nowrap}
+.f-stage{background:var(--surf);border:1px solid var(--border);padding:10px 14px;text-align:center;min-width:80px;flex-shrink:0;position:relative}
+.f-stage:first-child{border-radius:10px 0 0 10px}
+.f-stage:last-child{border-radius:0 10px 10px 0}
+.f-stage+.f-stage{border-left:none}
+.f-stage .fv{font-family:var(--mono);font-size:1.15rem;font-weight:700}
+.f-stage .fl{font-size:.6rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-top:3px}
+.f-stage.f-sep{background:transparent;border:none;min-width:16px;display:flex;align-items:center;justify-content:center;color:var(--border);font-size:1.2rem;padding:0}
 </style>
 <style>
-#loaderOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
-.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+#loaderOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div id="loaderOverlay">
   <div class="spinner"></div>
-  <div style="font-size:.82rem;color:var(--muted)">Loading live data from Google Sheets…</div>
+  <div style="font-size:.82rem;color:var(--muted)">Loading…</div>
   <div style="font-size:.7rem;color:var(--muted)" id="loaderStatus"></div>
 </div>
 <div id="mainWrap" style="display:none">
@@ -358,7 +368,9 @@ tfoot td{font-weight:700;background:var(--surf2)}
 </div>
 
 
+
 <script>
+
 function rfc4180(text){
   const rows=[];let row=[],cur='',inQ=false;
   for(let i=0;i<text.length;i++){
@@ -381,44 +393,37 @@ function pd(s){
 
 let RAW=[],MN={},AM={fwd_date:[],meet_date:[],fv_date:[]},ALL_M=[];
 let AL={fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
-const MN_AD={"2025-09":"Sep 25","2025-10":"Oct 25","2025-11":"Nov 25","2025-12":"Dec 25","2026-01":"Jan 26","2026-02":"Feb 26","2026-03":"Mar 26","2026-04":"Apr 26","2026-05":"May 26","2026-06":"Jun 26","2026-07":"Jul 26","2026-08":"Aug 26","2026-09":"Sep 26","2026-10":"Oct 26","2026-11":"Nov 26","2026-12":"Dec 26"};
 async function loadADData(){
-  const res=await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1912717860&single=true&output=csv');
-  const text=await res.text();
-  const rows=rfc4180(text);
+  const res=await fetch('https://docs.google.com/spreadsheets/d/1dfHf66Te93S6hgH4OUzmYBwBs3c8cYtOEMeSheSIEHk/gviz/tq?tqx=out:csv&gid=1912717860',{redirect:'follow'});
+  if(!res.ok)throw new Error('AD sheet HTTP '+res.status);
+  const rows=rfc4180(await res.text());
   const hdr=rows[0].map(h=>h.trim());
   for(let i=1;i<rows.length;i++){
     const cols=rows[i];if(cols.every(c=>!c.trim()))continue;
     const r={};hdr.forEach((h,j)=>r[h]=(cols[j]||'').trim());
     const fwd=pd(r['forwarded_Spoors - AD']);if(!fwd)continue;
-    const meet=pd(r['Meeting Date - forward lead']);
-    const fv=pd(r['First Visit Date']);
-    const cv=pd(r['lead_converted_at']);
+    const meet=pd(r['Meeting Date - forward lead']),fv=pd(r['First Visit Date']),cv=pd(r['lead_converted_at']);
     const cm1=(r['CM Meetings Remarks']||'').trim(),cm2=(r['CM Remark']||'').trim();
-    RAW.push({
-      city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
-      source:(r['Source']||'').trim()||'(blank)',
-      tele:(r['forwarded_by']||'').trim()||'(blank)',
+    RAW.push({city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
+      source:(r['Source']||'').trim()||'(blank)',tele:(r['forwarded_by']||'').trim()||'(blank)',
       bde:(r['agent_mail']||'').trim()||'(blank)',
       met:(r['Visited']||'').trim().toUpperCase()==='TRUE'?1:0,
       verified:(r['Verified?']||'').trim()==='Business Verified'?1:0,
       fwd_date:fwd,meet_date:meet||'',fv_date:fv||'',cv_date:cv||'',
       tat:(meet&&fv)?Math.round((new Date(fv)-new Date(meet))/86400000):null,
-      phone:(r['Lead Phone']||'').trim(),
-      biz_name:(r['business_name']||'').trim(),
+      phone:(r['Lead Phone']||'').trim(),biz_name:(r['business_name']||'').trim(),
       remark:(r['Tele-Agent Remark - forward lead']||'').trim(),
       cm_remark:[cm1,cm2].filter(Boolean).join(' | '),
-      tl:(r['team_lead_email']||'').trim(),row_num:i+1,
-    });
+      tl:(r['team_lead_email']||'').trim(),row_num:i+1});
   }
   const f=[...new Set(RAW.map(r=>r.fwd_date.slice(0,7)).filter(Boolean))].sort();
   const mt=[...new Set(RAW.map(r=>r.meet_date.slice(0,7)).filter(Boolean))].sort();
-  const fv=[...new Set(RAW.map(r=>r.fv_date.slice(0,7)).filter(Boolean))].sort();
-  AM.fwd_date=f;AM.meet_date=mt;AM.fv_date=fv;
-  ALL_M=[...new Set([...f,...mt,...fv])].sort();
+  const fv2=[...new Set(RAW.map(r=>r.fv_date.slice(0,7)).filter(Boolean))].sort();
+  AM.fwd_date=f;AM.meet_date=mt;AM.fv_date=fv2;
+  ALL_M=[...new Set([...f,...mt,...fv2])].sort();
+  const MN_AD={"2025-09": "Sep 25", "2025-10": "Oct 25", "2025-11": "Nov 25", "2025-12": "Dec 25", "2026-01": "Jan 26", "2026-02": "Feb 26", "2026-03": "Mar 26", "2026-04": "Apr 26", "2026-05": "May 26", "2026-06": "Jun 26", "2026-07": "Jul 26", "2026-08": "Aug 26", "2026-09": "Sep 26", "2026-10": "Oct 26", "2026-11": "Nov 26", "2026-12": "Dec 26"};
   ALL_M.forEach(m=>{MN[m]=MN_AD[m]||m;});
 }
-
 const AL = {fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
 
 // Row store for drill-down
@@ -803,217 +808,393 @@ function initAD(){
   U={city:uniq('city'),source:uniq('source'),tele:uniq('tele'),bde:uniq('bde')};
   sel.fc=new Set(U.city);sel.fs=new Set(U.source);sel.ft=new Set(U.tele);sel.fb=new Set(U.bde);
   Object.keys(MC).forEach(id=>{buildMS(id);updateMSLbl(id);});
-  buildMonthStrip(); updateMtdSlider(); render();
+  buildMonthStrip();updateMtdSlider();render();
 }
 
-</script>
-<script>
-
 let AN=[],AN_MN={},AN_ALL_MONTHS=[];
-const MN_AN={"2026-10":"Oct 26","2026-11":"Nov 26","2026-12":"Dec 26","2027-01":"Jan 27"};
 async function loadANData(){
-  const res=await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1047036629&single=true&output=csv');
-  const text=await res.text();
-  const rows=rfc4180(text);
+  const res=await fetch('https://docs.google.com/spreadsheets/d/1dfHf66Te93S6hgH4OUzmYBwBs3c8cYtOEMeSheSIEHk/gviz/tq?tqx=out:csv&gid=1047036629',{redirect:'follow'});
+  if(!res.ok)throw new Error('AN sheet HTTP '+res.status);
+  const rows=rfc4180(await res.text());
   const hdr=rows[0].map(h=>h.trim());
   for(let i=1;i<rows.length;i++){
     const cols=rows[i];if(cols.every(c=>!c.trim()))continue;
     const r={};hdr.forEach((h,j)=>r[h]=(cols[j]||'').trim());
-    const ld=pd(r['Lead Created Date']);
-    if(!ld||ld<'2026-10-27')continue;
-    const phone=(r['Customer Number']||'').replace(/\D/g,'');
-    if(phone.length!==10)continue;
+    const ld=pd(r['Lead Created Date']);if(!ld||ld<'2026-10-27')continue;
+    const phone=(r['Customer Number']||'').replace(/\D/g,'');if(phone.length!==10)continue;
     const cv=pd(r['Converted Date']);
     const b=r['Bucket']||'';
-    const bucket=b==='Hot'?'Hot':b==='Cold'?'Cold':b==='Fake'?'Fake':b==='No Outcome'?'No Outcome':b==='Not Connected'?'Not Connected':'Other';
-    AN.push({
-      lead_month:ld.slice(0,7),lead_date:ld,
+    const bucket=b==='Hot'?'Hot':b==='Cold'?'Cold':b==='Fake'?'Fake':
+      b==='No Outcome'?'No Outcome':b==='Not Connected'?'Not Connected':'Other';
+    AN.push({lead_month:ld.slice(0,7),lead_date:ld,
       city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
       bde:(r['BDE Email']||'').trim()||'(blank)',
       customer:(r['Customer Name']||'').trim(),phone,
       pushed:r['Pushed At']?1:0,
       connected:r['Connected']==='1'||r['Connected']===1?1:0,
-      hot:bucket==='Hot'?1:0,cold:bucket==='Cold'?1:0,
-      fake:bucket==='Fake'?1:0,no_outcome:bucket==='No Outcome'?1:0,
-      not_connected:bucket==='Not Connected'?1:0,
+      hot:bucket==='Hot'?1:0,cold:bucket==='Cold'?1:0,fake:bucket==='Fake'?1:0,
+      no_outcome:bucket==='No Outcome'?1:0,not_connected:bucket==='Not Connected'?1:0,
       bucket,fake_flag:r['Fake Flag']==='Yes'?1:0,
       cv_date:cv||'',cv_month:cv?cv.slice(0,7):'',converted:cv?1:0,
       conv_after_call:r['Converted After Call']==='Yes'?1:0,
-      spoors_link:(r['Spoors Link']||'').trim(),
-      source_id:r['Spoors Ref ID']||'',
-      attempts:parseInt(r['Attempts']||0),
-      call_outcome:(r['Call Outcome']||'').trim(),
-    });
+      spoors_link:(r['Spoors Link']||'').trim(),source_id:r['Spoors Ref ID']||'',
+      attempts:parseInt(r['Attempts']||0),call_outcome:(r['Call Outcome']||'').trim()});
   }
   const months=[...new Set(AN.map(r=>r.lead_month).filter(Boolean))].sort();
   AN_ALL_MONTHS.push(...months);
+  const MN_AN={"2026-10": "Oct 26", "2026-11": "Nov 26", "2026-12": "Dec 26", "2027-01": "Jan 27"};
   months.forEach(m=>{AN_MN[m]=MN_AN[m]||m;});
 }
-  if (anDim === 'overall') {
-    rows = [{ label:'Overall', recs, cvRecs, pushed, conn, not_conn, hot, cold, fake, no_out }];
-  } else {
-    const vm = {};
-    recs.forEach(r => {
-      const k = anDim==='city' ? r.city : anDim==='month' ? (AN_MN[r.lead_month]||r.lead_month) : r.bde;
-      if (!vm[k]) vm[k] = { label:k, recs:[], pushed:0, conn:0, not_conn:0, hot:0, cold:0, fake:0, no_out:0 };
-      vm[k].recs.push(r);
-      vm[k].pushed += r.pushed; vm[k].conn += r.connected;
-      vm[k].not_conn += r.not_connected; vm[k].hot += r.hot;
-      vm[k].cold += r.cold; vm[k].fake += r.fake; vm[k].no_out += r.no_outcome;
-    });
-    const cm = {};
-    cvRecs.forEach(r => {
-      const k = anDim==='city' ? r.city : anDim==='month' ? (AN_MN[r.lead_month]||r.lead_month) : r.bde;
-      if (!cm[k]) cm[k] = [];
-      cm[k].push(r);
-    });
-    const keys = new Set([...Object.keys(vm), ...Object.keys(cm)]);
-    rows = [...keys].map(k => ({ ...(vm[k]||{label:k,recs:[],pushed:0,conn:0,not_conn:0,hot:0,cold:0,fake:0,no_out:0}), cvRecs:cm[k]||[] }));
-  }
 
-  // Sort
-  const SK = ['label','pushed','conn','not_conn',null,'hot','cold','fake','no_out','conv'];
-  rows.sort((a,b) => {
-    const col = anSortCol;
-    if (col === 4) return 0;
-    const kk = col === 9 ? null : SK[col];
-    if (col === 9) {
-      const av = (a.cvRecs||[]).length, bv = (b.cvRecs||[]).length;
-      return anSortDir*(av-bv);
-    }
-    if (!kk) return 0;
-    if (col===0 && anDim==='month') {
-      const am = Object.keys(AN_MN).find(x=>AN_MN[x]===a.label)||a.label;
-      const bm = Object.keys(AN_MN).find(x=>AN_MN[x]===b.label)||b.label;
+const AN_ROWS={};let anIdx=0;
+function anStore(leads){const k='a'+(anIdx++);AN_ROWS[k]=leads;return k;}
+function anUniq(f){return[...new Set(AN.map(r=>r[f]))].filter(Boolean).sort((a,b)=>a.localeCompare(b));}
+function anFmt(n){return n.toLocaleString();}
+function anPct(a,b){return b?+(a/b*100).toFixed(1):0;}
+function anBar(p,color){
+  return`<div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p,100)}%;background:${color}"></div></div><span class="bp">${p}%</span></div>`;
+}
+
+// State
+let anDim='overall', anSelMonth=null, anSortCol=1, anSortDir=-1;
+const anSel={
+  city: new Set(anUniq('city')),
+  bde:  new Set(anUniq('bde')),
+  bucket: new Set(['Hot','Cold','Fake','No Outcome','Not Connected','Other']),
+};
+
+// ── Multi-select setup ────────────────────────────────────────────────
+const AN_MC={
+  city:   {all:()=>anUniq('city'),  lbl:'an-fclbl', ca:'an-fcca', opts:'an-fcopts', drop:'an-fcdrop', def:'All'},
+  bde:    {all:()=>anUniq('bde'),   lbl:'an-fblbl', ca:'an-fbca', opts:'an-fbopts', drop:'an-fbdrop', def:'All'},
+  bucket: {all:()=>['Hot','Cold','Fake','No Outcome','Not Connected','Other'],
+            lbl:'an-fklbl', ca:'an-fkca', opts:'an-fkopts', drop:'an-fkdrop', def:'All'},
+};
+
+function anBuildMS(id){
+  const{all,opts}=AN_MC[id];
+  document.getElementById(opts).innerHTML=all().map(v=>
+    `<div class="ms-opt" onclick="anToggleOpt('${id}',this)" data-val="${v.replace(/"/g,'&quot;')}">
+      <input type="checkbox" ${anSel[id].has(v)?'checked':''}><span>${v}</span></div>`
+  ).join('');
+}
+function anToggleMS(id){
+  const open=document.getElementById(AN_MC[id].drop).classList.contains('open');
+  anCloseAll();
+  if(!open)document.getElementById(AN_MC[id].drop).classList.add('open');
+}
+function anSrchMS(inp,id){
+  const q=inp.value.toLowerCase();
+  document.querySelectorAll(`#${AN_MC[id].opts} .ms-opt`).forEach(el=>{
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+function anToggleOpt(id,el){
+  const val=el.dataset.val;
+  if(anSel[id].has(val))anSel[id].delete(val); else anSel[id].add(val);
+  el.querySelector('input').checked=anSel[id].has(val);
+  document.getElementById(AN_MC[id].ca).checked=anSel[id].size===AN_MC[id].all().length;
+  anUpdateLbl(id); anRender();
+}
+function anMsAll(id){
+  const all=AN_MC[id].all();
+  anSel[id]=anSel[id].size===all.length?new Set():new Set(all);
+  document.getElementById(AN_MC[id].ca).checked=anSel[id].size===all.length;
+  anBuildMS(id); anUpdateLbl(id); anRender();
+}
+function anUpdateLbl(id){
+  const all=AN_MC[id].all();const n=anSel[id].size;
+  document.getElementById(AN_MC[id].lbl).innerHTML=
+    n===all.length?AN_MC[id].def:`<span class="badge">${n}</span>`;
+}
+
+// ── Single select (pivot) ─────────────────────────────────────────────
+function anToggleCS(){
+  const drop=document.getElementById('an-d1drop');
+  const open=drop.classList.contains('open');
+  anCloseAll();
+  if(!open){drop.classList.add('open');document.getElementById('an-d1btn').classList.add('open');}
+}
+function anPickDim(val,lbl){
+  anDim=val;
+  document.querySelectorAll('#an-d1drop .cs-item').forEach(el=>el.classList.toggle('active',el.dataset.val===val));
+  document.getElementById('an-d1btn').textContent=lbl;
+  anCloseAll();anSortCol=1;anSortDir=-1;anRender();
+}
+function anCloseAll(){
+  document.querySelectorAll('#tab-an .cs-drop,#tab-an .ms-drop').forEach(d=>d.classList.remove('open'));
+  document.querySelectorAll('#tab-an .cs-btn').forEach(b=>b.classList.remove('open'));
+}
+
+// ── Month strip ───────────────────────────────────────────────────────
+function anBuildStrip(){
+  document.getElementById('an-mstrip').innerHTML=
+    `<button class="mall ${!anSelMonth?'active':''}" onclick="anPickMonth(null)">All</button>`+
+    AN_ALL_MONTHS.map(m=>
+      `<button class="mbtn${anSelMonth===m?' active':''}" onclick="anPickMonth('${m}')">${AN_MN[m]||m}</button>`
+    ).join('');
+}
+function anPickMonth(m){
+  anSelMonth=m;anBuildStrip();
+  const bar=document.getElementById('an-cohortBar');
+  if(m){bar.style.display='flex';document.getElementById('an-cohortLabel').textContent=(AN_MN[m]||m)+' · Conv ★ closes in '+(AN_MN[m]||m);}
+  else bar.style.display='none';
+  anRender();
+}
+
+function anReset(){
+  anSelMonth=null;anDim='overall';
+  Object.keys(AN_MC).forEach(id=>{anSel[id]=new Set(AN_MC[id].all());anBuildMS(id);anUpdateLbl(id);});
+  anPickDim('overall','Overall');anBuildStrip();
+  document.getElementById('an-cohortBar').style.display='none';
+  anRender();
+}
+
+// ── Pools ─────────────────────────────────────────────────────────────
+function anPool(){
+  return AN.filter(r=>{
+    if(!anSel.city.has(r.city))return false;
+    if(!anSel.bde.has(r.bde))return false;
+    if(!anSel.bucket.has(r.bucket))return false;
+    if(anSelMonth&&r.lead_month!==anSelMonth)return false;
+    return true;
+  });
+}
+function anCvPool(){
+  return AN.filter(r=>{
+    if(!anSel.city.has(r.city))return false;
+    if(!anSel.bde.has(r.bde))return false;
+    if(!r.cv_month)return false;
+    if(anSelMonth&&r.cv_month!==anSelMonth)return false;
+    return true;
+  });
+}
+
+// ── Funnel stage ──────────────────────────────────────────────────────
+function fStage(label,val,color,key){
+  const k=key?anStore(AN.filter(r=>r.lead_month===(anSelMonth||r.lead_month)&&anSel.city.has(r.city)&&anSel.bde.has(r.bde))):'';
+  return`<div class="f-stage" ${key?`onclick="anDrillModal('${k}','${label}')" style="cursor:pointer"`:''}><div class="fv" style="color:${color}">${anFmt(val)}</div><div class="fl">${label}</div></div>`;
+}
+function fSep(){return'<div class="f-stage f-sep">›</div>';}
+
+// ── Render ────────────────────────────────────────────────────────────
+function anRender(){
+  Object.keys(AN_ROWS).forEach(k=>delete AN_ROWS[k]);anIdx=0;
+  const recs=anPool(), cvRecs=anCvPool();
+  const pushed=recs.reduce((s,r)=>s+r.pushed,0);
+  const conn=recs.reduce((s,r)=>s+r.connected,0);
+  const not_conn=recs.reduce((s,r)=>s+r.not_connected,0);
+  const hot=recs.reduce((s,r)=>s+r.hot,0);
+  const cold=recs.reduce((s,r)=>s+r.cold,0);
+  const fake=recs.reduce((s,r)=>s+r.fake,0);
+  const no_out=recs.reduce((s,r)=>s+r.no_outcome,0);
+  const audited=hot+cold+fake;
+  const conv=cvRecs.length;
+
+  // KPIs
+  document.getElementById('an-kp').textContent=anFmt(pushed);
+  document.getElementById('an-kps').textContent=anSelMonth?(AN_MN[anSelMonth]||anSelMonth):'all months';
+  document.getElementById('an-kc').textContent=anFmt(conn);
+  document.getElementById('an-kcs').textContent=anPct(conn,pushed)+'% of pushed';
+  document.getElementById('an-knc').textContent=anFmt(not_conn);
+  document.getElementById('an-kncs').textContent=anPct(not_conn,pushed)+'% of pushed';
+  document.getElementById('an-kh').textContent=anFmt(hot);
+  document.getElementById('an-khs').textContent=audited?anPct(hot,audited)+'% of audited':'—';
+  document.getElementById('an-kcl').textContent=anFmt(cold);
+  document.getElementById('an-kcls').textContent=audited?anPct(cold,audited)+'% of audited':'—';
+  document.getElementById('an-kf').textContent=anFmt(fake);
+  document.getElementById('an-kfs').textContent=audited?anPct(fake,audited)+'% of audited':'—';
+  document.getElementById('an-kcv').textContent=anFmt(conv);
+  document.getElementById('an-kcvs').textContent=anSelMonth?'closed in '+(AN_MN[anSelMonth]||anSelMonth):'all closes';
+
+  // Funnel — compact connected bar
+  const kPushed=anStore(recs);
+  const kConn=anStore(recs.filter(r=>r.connected));
+  const kNc=anStore(recs.filter(r=>r.not_connected));
+  const kHot=anStore(recs.filter(r=>r.hot));
+  const kCold=anStore(recs.filter(r=>r.cold));
+  const kFake=anStore(recs.filter(r=>r.fake));
+  const kNo=anStore(recs.filter(r=>r.no_outcome));
+  const kCv=anStore(cvRecs);
+
+  function fs(label,val,color,key){
+    return`<div class="f-stage" onclick="anDrillModal('${key}','${label}')" style="cursor:pointer">
+      <div class="fv" style="color:${color}">${anFmt(val)}</div>
+      <div class="fl">${label}</div></div>`;
+  }
+  document.getElementById('an-funnel').innerHTML=
+    fs('Pushed',pushed,'var(--acc)',kPushed)+
+    '<div class="f-stage f-sep">›</div>'+
+    fs('Connected',conn,'var(--met)',kConn)+
+    fs('Not Conn.',not_conn,'var(--muted)',kNc)+
+    '<div class="f-stage f-sep">›</div>'+
+    fs('Hot',hot,'#16a34a',kHot)+
+    fs('Cold',cold,'#2563eb',kCold)+
+    fs('Fake',fake,'#dc2626',kFake)+
+    fs('No Outcome',no_out,'var(--muted)',kNo)+
+    '<div class="f-stage f-sep">›</div>'+
+    fs('Conv ★',conv,'var(--cv)',kCv);
+
+  // Pivot table
+  let rows=[];
+  if(anDim==='overall'){
+    rows=[{label:'Overall',recs,cvRecs,pushed,conn,not_conn,hot,cold,fake,no_out}];
+  }else{
+    const vm={};
+    recs.forEach(r=>{
+      const k=anDim==='city'?r.city:anDim==='month'?(AN_MN[r.lead_month]||r.lead_month):r.bde;
+      if(!vm[k])vm[k]={label:k,recs:[],pushed:0,conn:0,not_conn:0,hot:0,cold:0,fake:0,no_out:0};
+      vm[k].recs.push(r);
+      vm[k].pushed+=r.pushed;vm[k].conn+=r.connected;vm[k].not_conn+=r.not_connected;
+      vm[k].hot+=r.hot;vm[k].cold+=r.cold;vm[k].fake+=r.fake;vm[k].no_out+=r.no_outcome;
+    });
+    const cm={};
+    cvRecs.forEach(r=>{
+      const k=anDim==='city'?r.city:anDim==='month'?(AN_MN[r.lead_month]||r.lead_month):r.bde;
+      if(!cm[k])cm[k]=[];cm[k].push(r);
+    });
+    const keys=new Set([...Object.keys(vm),...Object.keys(cm)]);
+    rows=[...keys].map(k=>({...(vm[k]||{label:k,recs:[],pushed:0,conn:0,not_conn:0,hot:0,cold:0,fake:0,no_out:0}),cvRecs:cm[k]||[]}));
+  }
+  rows=rows.map(r=>{return{...r,conv:(r.cvRecs||[]).length};});
+
+  const SK=['label','pushed','conn','not_conn',null,'hot','cold','fake','no_out','conv'];
+  rows.sort((a,b)=>{
+    const col=anSortCol;if(col===4)return 0;
+    if(col===9)return anSortDir*((a.cvRecs||[]).length-(b.cvRecs||[]).length);
+    const kk=SK[col];if(!kk)return 0;
+    if(col===0&&anDim==='month'){
+      const am=Object.keys(AN_MN).find(x=>AN_MN[x]===a.label)||a.label;
+      const bm=Object.keys(AN_MN).find(x=>AN_MN[x]===b.label)||b.label;
       return anSortDir*am.localeCompare(bm);
     }
-    const av=a[kk], bv=b[kk];
-    return typeof av==='string' ? anSortDir*av.localeCompare(bv) : anSortDir*(av-bv);
+    const av=a[kk],bv=b[kk];
+    return typeof av==='string'?anSortDir*av.localeCompare(bv):anSortDir*(av-bv);
   });
 
-  function ach(i,t) {
-    return `<th onclick="anSrt(${i})" style="text-align:right" class="${anSortCol===i?(anSortDir===-1?'sd':'sa'):''} ${i===0?'left':''}">${t}</th>`;
-  }
+  function ach(i,t){return`<th onclick="anSrt(${i})" style="text-align:right" class="${anSortCol===i?(anSortDir===-1?'sd':'sa'):''} ${i===0?'left':''}">${t}</th>`;}
 
-  document.getElementById('an-colgroup').innerHTML =
-    '<col style="width:185px"><col style="width:78px"><col style="width:78px"><col style="width:95px"><col style="width:85px">' +
+  document.getElementById('an-colgroup').innerHTML=
+    '<col style="width:185px"><col style="width:78px"><col style="width:78px"><col style="width:90px"><col style="width:80px">'+
     '<col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:82px"><col style="width:70px">';
 
-  document.getElementById('an-thead').innerHTML = `<tr>
-    ${ach(0, anDim==='bde'?'BDE Agent':anDim==='month'?'Month':'Dimension')}
-    ${ach(1,'Pushed')} ${ach(2,'Connected')} ${ach(3,'Not Conn')}
+  document.getElementById('an-thead').innerHTML=`<tr>
+    ${ach(0,anDim==='bde'?'BDE Agent':anDim==='month'?'Month':'Dimension')}
+    ${ach(1,'Pushed')}${ach(2,'Connected')}${ach(3,'Not Conn.')}
     <th style="text-align:left;font-size:.58rem">Conn%</th>
-    ${ach(5,'Hot')} ${ach(6,'Cold')} ${ach(7,'Fake')} ${ach(8,'No Outcome')} ${ach(9,'Conv ★')}
+    ${ach(5,'Hot')}${ach(6,'Cold')}${ach(7,'Fake')}${ach(8,'No Outcome')}${ach(9,'Conv ★')}
   </tr>`;
 
-  function dlSpan(key, val, color) {
-    return `<span onclick="anDrill('${key}')" style="color:${color};font-family:var(--mono);cursor:pointer;text-decoration:underline;text-decoration-style:dotted">${anFmt(val)}</span>`;
+  function dlN(key,val,color){
+    return`<span onclick="anDrillModal('${key}','')" style="color:${color};font-family:var(--mono);cursor:pointer;text-decoration:underline;text-decoration-style:dotted">${anFmt(val)}</span>`;
   }
 
-  document.getElementById('an-tbody').innerHTML = rows.map(r => {
-    const cr = r.cvRecs || [];
-    const kAll  = anStore(r.recs||[]);
-    const kHot  = anStore((r.recs||[]).filter(x=>x.hot));
-    const kCold = anStore((r.recs||[]).filter(x=>x.cold));
-    const kFake = anStore((r.recs||[]).filter(x=>x.fake));
-    const kNc   = anStore((r.recs||[]).filter(x=>x.not_connected));
-    const kNo   = anStore((r.recs||[]).filter(x=>x.no_outcome));
-    const kCv   = anStore(cr);
-    return `<tr>
+  document.getElementById('an-tbody').innerHTML=rows.map(r=>{
+    const cr=r.cvRecs||[];
+    const kAll=anStore(r.recs||[]);
+    const kH=anStore((r.recs||[]).filter(x=>x.hot));
+    const kC=anStore((r.recs||[]).filter(x=>x.cold));
+    const kF=anStore((r.recs||[]).filter(x=>x.fake));
+    const kNc=anStore((r.recs||[]).filter(x=>x.not_connected));
+    const kNo=anStore((r.recs||[]).filter(x=>x.no_outcome));
+    const kCv=anStore(cr);
+    return`<tr>
       <td class="dc left" title="${r.label}">${r.label}</td>
-      <td>${dlSpan(kAll, r.pushed, 'var(--acc)')}</td>
-      <td style="font-family:var(--mono);text-align:right">${anFmt(r.conn)}</td>
-      <td>${dlSpan(kNc, r.not_conn, 'var(--muted)')}</td>
+      <td>${dlN(kAll,r.pushed,'var(--acc)')}</td>
+      <td style="font-family:var(--mono);text-align:right;color:var(--met)">${anFmt(r.conn)}</td>
+      <td>${dlN(kNc,r.not_conn,'var(--muted)')}</td>
       <td>${anBar(anPct(r.conn,r.pushed),'var(--met)')}</td>
-      <td>${dlSpan(kHot, r.hot, '#34c47a')}</td>
-      <td>${dlSpan(kCold, r.cold, '#60a5fa')}</td>
-      <td>${dlSpan(kFake, r.fake, '#f87171')}</td>
-      <td>${dlSpan(kNo, r.no_out, 'var(--muted)')}</td>
-      <td>${dlSpan(kCv, cr.length, 'var(--cv)')}</td>
+      <td>${dlN(kH,r.hot,'#16a34a')}</td>
+      <td>${dlN(kC,r.cold,'#2563eb')}</td>
+      <td>${dlN(kF,r.fake,'#dc2626')}</td>
+      <td>${dlN(kNo,r.no_out,'var(--muted)')}</td>
+      <td>${dlN(kCv,r.conv,'var(--cv)')}</td>
     </tr>`;
   }).join('');
 
-  const kTot   = anStore(recs);
-  const kTotCv = anStore(cvRecs);
-  const kTotNc = anStore(recs.filter(x=>x.not_connected));
-  document.getElementById('an-tfoot').innerHTML = `<tr>
+  const kTot=anStore(recs),kTotCv=anStore(cvRecs),kTotNc=anStore(recs.filter(x=>x.not_connected));
+  document.getElementById('an-tfoot').innerHTML=`<tr>
     <td class="left">TOTAL</td>
-    <td>${dlSpan(kTot, pushed, 'var(--acc)')}</td>
-    <td style="font-family:var(--mono);text-align:right;font-weight:700">${anFmt(conn)}</td>
-    <td>${dlSpan(kTotNc, not_conn, 'var(--muted)')}</td>
+    <td>${dlN(kTot,pushed,'var(--acc)')}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:var(--met)">${anFmt(conn)}</td>
+    <td>${dlN(kTotNc,not_conn,'var(--muted)')}</td>
     <td>${anBar(anPct(conn,pushed),'var(--met)')}</td>
-    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#34c47a">${anFmt(hot)}</td>
-    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#60a5fa">${anFmt(cold)}</td>
-    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#f87171">${anFmt(fake)}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#16a34a">${anFmt(hot)}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#2563eb">${anFmt(cold)}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#dc2626">${anFmt(fake)}</td>
     <td style="font-family:var(--mono);text-align:right;font-weight:700;color:var(--muted)">${anFmt(no_out)}</td>
-    <td>${dlSpan(kTotCv, conv, 'var(--cv)')}</td>
+    <td>${dlN(kTotCv,conv,'var(--cv)')}</td>
   </tr>`;
 
-  document.getElementById('an-statln').textContent =
-    `${rows.length} rows · ${anFmt(pushed)} pushed · ${anFmt(audited)} audited · Conv ★ = closes in period · click any underlined number to drill down`;
+  document.getElementById('an-statln').textContent=
+    `${rows.length} rows · ${anFmt(pushed)} pushed · ${anFmt(audited)} audited · Conv ★ = closes in period`;
 }
+function anSrt(col){if(anSortCol===col)anSortDir*=-1;else{anSortCol=col;anSortDir=-1;}anRender();}
 
-function anSrt(col) { if(anSortCol===col) anSortDir*=-1; else {anSortCol=col;anSortDir=-1;} anRender(); }
-
-// ── Drill-down — reuses the existing AD modal ─────────────────────────
-function anDrill(key) {
-  const leads = AN_ROWS[key] || [];
-  modalAll = leads.map(r => ({
-    biz_name:  r.customer,
-    phone:     r.phone || '',
-    city:      r.city,
-    source:    r.bucket + (r.fake_flag ? '  ⚑ Flagged' : ''),
-    tele:      '',
-    bde:       r.bde,
-    fwd_date:  r.lead_date || '',
-    meet_date: '',
-    fv_date:   '',
-    cv_date:   r.cv_date || '',
-    met:       r.connected,
-    verified:  r.hot || r.cold,
-    tat:       null,
-    remark:    r.call_outcome || '',
-    cm_remark: r.spoors_link ? 'Spoors: ' + r.spoors_link : '',
-    row_num:   r.source_id,
-  }));
-  document.getElementById('modalTitle').innerHTML = `<span style="color:var(--acc)">${leads.length} leads</span>`;
-  document.getElementById('modalSub').textContent =
-    (anSelMonth ? AN_MN[anSelMonth]||anSelMonth : 'All months') + ' · AI Audited Leads (Ananya)';
-  document.getElementById('modalSearch').value = '';
+// ── Drill modal — maps Ananya → AD modal format for download ──────────
+function anDrillModal(key, label){
+  const leads=AN_ROWS[key]||[];
+  modalAll=leads.map(r=>{
+    const esc=s=>(s||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    return{
+      biz_name:  r.customer||'—',
+      phone:     r.phone||'—',
+      city:      r.city,
+      source:    r.bucket+(r.fake_flag?' ⚑':''),
+      tele:      '',
+      bde:       r.bde,
+      fwd_date:  r.lead_date||'',
+      meet_date: '',
+      fv_date:   '',
+      cv_date:   r.cv_date||'',
+      met:       r.connected,
+      verified:  r.hot||r.cold,
+      tat:       null,
+      remark:    r.call_outcome||'',
+      cm_remark: r.spoors_link?'Spoors: '+r.spoors_link:'',
+      row_num:   r.source_id||'',
+    };
+  });
+  document.getElementById('modalTitle').innerHTML=
+    `<span style="color:var(--acc)">${leads.length} leads</span> — ${label||'Ananya'}`;
+  document.getElementById('modalSub').textContent=
+    (anSelMonth?AN_MN[anSelMonth]||anSelMonth:'All months')+' · AI Audited (Ananya)';
+  document.getElementById('modalSearch').value='';
   renderModalRows(modalAll);
   document.getElementById('modalBg').classList.add('open');
 }
 
 // ── Init ──────────────────────────────────────────────────────────────
 function initAN(){
-  anSelCity=new Set(anUniq('city'));
-  anBuildCityMS(); anBuildStrip(); anRender();
+  Object.keys(AN_MC).forEach(id=>{anSel[id]=new Set(AN_MC[id].all());anBuildMS(id);anUpdateLbl(id);});
+  anBuildStrip();
+  anRender();
+}
+function initAN(){
+  Object.keys(AN_MC).forEach(id=>{anSel[id]=new Set(AN_MC[id].all());anBuildMS(id);anUpdateLbl(id);});
+  anBuildStrip();anRender();
 }
 
-</script>
-
-<script>
 function switchTab(id){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   document.querySelector(`.tab-btn[onclick="switchTab('${id}')"]`).classList.add('active');
 }
-</script>
-</div><!-- /mainWrap -->
-<script>
+
 async function loadAll(){
   const loader=document.getElementById('loaderOverlay');
   const main=document.getElementById('mainWrap');
   loader.style.display='flex';main.style.display='none';
   try{
-    document.getElementById('loaderStatus').textContent='Loading AD Forwarded Leads…';
+    document.getElementById('loaderStatus').textContent='Fetching AD Forwarded Leads from Google Sheets…';
     await loadADData();
     document.getElementById('loaderStatus').textContent='Loading AI Audit data…';
     await loadANData();
     loader.style.display='none';main.style.display='block';
-    document.getElementById('refreshedAt').textContent=
-      'Live · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const el=document.getElementById('refreshedAt');
+    if(el)el.textContent='Live · '+new Date().toLocaleString('en-IN',
+      {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
     initAD();initAN();
   }catch(e){
     document.getElementById('loaderStatus').innerHTML=
@@ -1022,5 +1203,7 @@ async function loadAll(){
 }
 loadAll();
 </script>
+
+</div><!-- /mainWrap -->
 </body>
 </html>
