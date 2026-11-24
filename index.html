@@ -369,6 +369,104 @@ tfoot td{font-weight:700;background:var(--surf2)}
 
 
 
+
+
+<div class="tab-pane" id="tab-an">
+
+<div class="hdr" style="position:relative;z-index:38">
+  <h1>AI Audited Leads — Ananya</h1>
+  <p>FST BDE visit audit · Oct 2026 onwards · Last refreshed: 24 Nov 2026 03:45</p>
+</div>
+
+<!-- KPIs -->
+<div class="an-kpis">
+  <div class="kpi k-pushed"><div class="v" id="an-kp">—</div><div class="l">Pushed</div><div class="s" id="an-kps">—</div></div>
+  <div class="kpi"><div class="v" id="an-kc" style="color:var(--met)">—</div><div class="l">Connected</div><div class="s" id="an-kcs">—</div></div>
+  <div class="kpi"><div class="v" id="an-knc" style="color:var(--muted)">—</div><div class="l">Not Connected</div><div class="s" id="an-kncs">—</div></div>
+  <div class="kpi k-hot"><div class="v" id="an-kh">—</div><div class="l">Hot</div><div class="s" id="an-khs">—</div></div>
+  <div class="kpi k-cold"><div class="v" id="an-kcl">—</div><div class="l">Cold</div><div class="s" id="an-kcls">—</div></div>
+  <div class="kpi k-fake"><div class="v" id="an-kf">—</div><div class="l">Fake</div><div class="s" id="an-kfs">—</div></div>
+  <div class="kpi k-conv"><div class="v" id="an-kcv">—</div><div class="l">Conv ★</div><div class="s" id="an-kcvs">—</div></div>
+</div>
+
+<!-- Funnel bar -->
+<div class="funnel-row" id="an-funnel"></div>
+
+<!-- Month strip -->
+<div style="padding:10px 24px 0">
+  <div style="font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:6px">Month</div>
+  <div class="mstrip" id="an-mstrip"></div>
+</div>
+
+<!-- Controls -->
+<div class="ctrl">
+  <div class="cgrp">
+    <label>Pivot by</label>
+    <div class="cs-wrap" style="min-width:155px">
+      <button class="cs-btn" id="an-d1btn" onclick="anToggleCS()">Overall</button>
+      <div class="cs-drop" id="an-d1drop">
+        <div class="cs-item active" data-val="overall" onclick="anPickDim('overall','Overall')">Overall</div>
+        <div class="cs-div"></div>
+        <div class="cs-item" data-val="month" onclick="anPickDim('month','Month')">Month</div>
+        <div class="cs-item" data-val="city" onclick="anPickDim('city','City')">City</div>
+        <div class="cs-item" data-val="bde" onclick="anPickDim('bde','BDE Agent')">BDE Agent</div>
+      </div>
+    </div>
+  </div>
+  <div class="cdiv"></div>
+  <!-- City filter -->
+  <div class="cgrp">
+    <label>City</label>
+    <div class="ms-wrap"><button class="ms-btn" onclick="anToggleMS('city')"><span id="an-fclbl">All</span></button>
+      <div class="ms-drop" id="an-fcdrop">
+        <input class="ms-srch" placeholder="Search…" oninput="anSrchMS(this,'city')">
+        <div class="ms-all" onclick="anMsAll('city')"><input type="checkbox" id="an-fcca" checked>All</div>
+        <div id="an-fcopts"></div>
+      </div>
+    </div>
+  </div>
+  <!-- BDE filter -->
+  <div class="cgrp">
+    <label>BDE Agent</label>
+    <div class="ms-wrap"><button class="ms-btn" onclick="anToggleMS('bde')"><span id="an-fblbl">All</span></button>
+      <div class="ms-drop" id="an-fbdrop">
+        <input class="ms-srch" placeholder="Search…" oninput="anSrchMS(this,'bde')">
+        <div class="ms-all" onclick="anMsAll('bde')"><input type="checkbox" id="an-fbca" checked>All</div>
+        <div id="an-fbopts"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Bucket filter -->
+  <div class="cgrp">
+    <label>Bucket</label>
+    <div class="ms-wrap"><button class="ms-btn" onclick="anToggleMS('bucket')"><span id="an-fklbl">All</span></button>
+      <div class="ms-drop" id="an-fkdrop">
+        <div class="ms-all" onclick="anMsAll('bucket')"><input type="checkbox" id="an-fkca" checked>All</div>
+        <div id="an-fkopts"></div>
+      </div>
+    </div>
+  </div>
+  <button class="reset-btn" onclick="anReset()">↺ Reset</button>
+</div>
+
+<div class="cohort-bar" id="an-cohortBar" style="display:none">
+  <span class="ck" id="an-cohortLabel">—</span>
+</div>
+
+<div class="tbl-wrap">
+  <div class="stat-ln" id="an-statln"></div>
+  <div class="tbl-scroll">
+    <table style="width:100%;border-collapse:collapse;font-size:.77rem;table-layout:fixed">
+      <colgroup id="an-colgroup"></colgroup>
+      <thead id="an-thead"></thead>
+      <tbody id="an-tbody"></tbody>
+      <tfoot id="an-tfoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+</div><!-- /tab-an -->
+
 <script>
 
 function rfc4180(text){
