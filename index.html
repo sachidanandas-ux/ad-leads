@@ -113,11 +113,6 @@ tfoot td{font-weight:700;background:var(--surf2)}
 .tat-l1{background:rgba(245,166,35,.15);color:var(--tat-l1)}.tat-l2{background:rgba(248,113,113,.15);color:var(--tat-l2)}
 .tat-na{background:var(--surf2);color:var(--muted)}
 /* MTD inline — no row CSS needed */
-/* Loader */
-#loaderOverlay{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
-.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-
 /* DRILL NUMBERS */
 .dl{font-family:var(--mono);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;transition:opacity .1s}
 .dl:hover{opacity:.7}
@@ -149,16 +144,45 @@ tfoot td{font-weight:700;background:var(--surf2)}
 .trunc{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
 .modal-footer{padding:9px 18px;border-top:1px solid var(--border);font-size:.67rem;color:var(--muted);border-radius:0 0 14px 14px;line-height:1.5}
 </style>
+<style>
+.tab-bar{display:flex;gap:0;background:var(--surf);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:0;z-index:50}
+.tab-btn{padding:12px 20px;font:.8rem var(--sans);font-weight:600;color:var(--muted);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.an-kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;padding:14px 24px 0}
+@media(max-width:900px){.an-kpis{grid-template-columns:repeat(4,1fr)}}
+.k-hot .v{color:#34c47a}.k-cold .v{color:#60a5fa}.k-fake .v{color:#f87171}
+.k-pushed .v{color:var(--acc)}.k-conv .v{color:var(--cv)}
+.funnel-row{display:flex;align-items:center;gap:0;overflow-x:auto;padding:0 24px;margin:8px 0 0;flex-wrap:nowrap}
+.f-stage{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:8px 12px;text-align:center;min-width:88px;flex-shrink:0}
+.f-stage .fv{font-family:var(--mono);font-size:1.1rem;font-weight:600}
+.f-stage .fl{font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:2px}
+.f-stage .fp{font-size:.63rem;color:var(--muted);margin-top:2px}
+.f-arr{color:var(--muted);font-size:1rem;padding:0 3px;flex-shrink:0;align-self:center}
+.an-legend{display:flex;gap:10px;flex-wrap:wrap;padding:6px 24px 0;font-size:.67rem;color:var(--muted)}
+</style>
+<style>
+#loaderOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
 <div id="loaderOverlay">
   <div class="spinner"></div>
   <div style="font-size:.82rem;color:var(--muted)">Loading live data from Google Sheets…</div>
+  <div style="font-size:.7rem;color:var(--muted)" id="loaderStatus"></div>
 </div>
 <div id="mainWrap" style="display:none">
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('ad')">📋 AD Forwarded Leads</button>
+  <button class="tab-btn" onclick="switchTab('an')">🤖 AI Audited Leads (Ananya)</button>
+</div>
+<div class="tab-pane active" id="tab-ad">
 <div class="hdr">
   <h1>AD Forwarded Leads — v7</h1>
-  <p>Fwd volume = forwarded date cohort · Conv ★ = actual closes in period · <span id='refreshedAt'>Loading…</span> 12:17:09</p>
+  <p>Fwd volume = forwarded date cohort · Conv ★ = actual closes in period · <span id='refreshedAt'>Loading…</span> · <a href='javascript:location.reload()' style='color:var(--acc);text-decoration:none'>↺ Refresh</a> 12:17:09</p>
 </div>
 
 <div class="kpis">
@@ -335,11 +359,67 @@ tfoot td{font-weight:700;background:var(--surf2)}
 
 
 <script>
-const RAW = [];   // populated by loadData()
-let MN = {};   // populated by loadData()
-let AM = {fwd_date:[], meet_date:[], fv_date:[]};
-let ALL_M = [];
-let AL = {fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
+function rfc4180(text){
+  const rows=[];let row=[],cur='',inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i],nx=text[i+1];
+    if(inQ){if(ch==='"'&&nx==='"'){cur+='"';i++;}else if(ch==='"')inQ=false;else cur+=ch;}
+    else{if(ch==='"')inQ=true;else if(ch===','){row.push(cur);cur='';}
+    else if(ch==='\r'&&nx==='\n'){row.push(cur);rows.push(row);row=[];cur='';i++;}
+    else if(ch==='\n'||ch==='\r'){row.push(cur);rows.push(row);row=[];cur='';}
+    else cur+=ch;}
+  }
+  if(cur||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+function pd(s){
+  if(!s||!s.trim())return null;s=s.trim();
+  if(s.match(/^\d{4}-\d{2}-\d{2}/))return s.slice(0,10);
+  const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:null;
+}
+
+let RAW=[],MN={},AM={fwd_date:[],meet_date:[],fv_date:[]},ALL_M=[];
+let AL={fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
+const MN_AD={"2025-09":"Sep 25","2025-10":"Oct 25","2025-11":"Nov 25","2025-12":"Dec 25","2026-01":"Jan 26","2026-02":"Feb 26","2026-03":"Mar 26","2026-04":"Apr 26","2026-05":"May 26","2026-06":"Jun 26","2026-07":"Jul 26","2026-08":"Aug 26","2026-09":"Sep 26","2026-10":"Oct 26","2026-11":"Nov 26","2026-12":"Dec 26"};
+async function loadADData(){
+  const res=await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1912717860&single=true&output=csv');
+  const text=await res.text();
+  const rows=rfc4180(text);
+  const hdr=rows[0].map(h=>h.trim());
+  for(let i=1;i<rows.length;i++){
+    const cols=rows[i];if(cols.every(c=>!c.trim()))continue;
+    const r={};hdr.forEach((h,j)=>r[h]=(cols[j]||'').trim());
+    const fwd=pd(r['forwarded_Spoors - AD']);if(!fwd)continue;
+    const meet=pd(r['Meeting Date - forward lead']);
+    const fv=pd(r['First Visit Date']);
+    const cv=pd(r['lead_converted_at']);
+    const cm1=(r['CM Meetings Remarks']||'').trim(),cm2=(r['CM Remark']||'').trim();
+    RAW.push({
+      city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
+      source:(r['Source']||'').trim()||'(blank)',
+      tele:(r['forwarded_by']||'').trim()||'(blank)',
+      bde:(r['agent_mail']||'').trim()||'(blank)',
+      met:(r['Visited']||'').trim().toUpperCase()==='TRUE'?1:0,
+      verified:(r['Verified?']||'').trim()==='Business Verified'?1:0,
+      fwd_date:fwd,meet_date:meet||'',fv_date:fv||'',cv_date:cv||'',
+      tat:(meet&&fv)?Math.round((new Date(fv)-new Date(meet))/86400000):null,
+      phone:(r['Lead Phone']||'').trim(),
+      biz_name:(r['business_name']||'').trim(),
+      remark:(r['Tele-Agent Remark - forward lead']||'').trim(),
+      cm_remark:[cm1,cm2].filter(Boolean).join(' | '),
+      tl:(r['team_lead_email']||'').trim(),row_num:i+1,
+    });
+  }
+  const f=[...new Set(RAW.map(r=>r.fwd_date.slice(0,7)).filter(Boolean))].sort();
+  const mt=[...new Set(RAW.map(r=>r.meet_date.slice(0,7)).filter(Boolean))].sort();
+  const fv=[...new Set(RAW.map(r=>r.fv_date.slice(0,7)).filter(Boolean))].sort();
+  AM.fwd_date=f;AM.meet_date=mt;AM.fv_date=fv;
+  ALL_M=[...new Set([...f,...mt,...fv])].sort();
+  ALL_M.forEach(m=>{MN[m]=MN_AD[m]||m;});
+}
+
+const AL = {fwd_date:'Forwarded Date',meet_date:'Meet Date',fv_date:'First Visit Date'};
 
 // Row store for drill-down
 const ROWS = {};
@@ -347,10 +427,11 @@ let rowIdx = 0;
 function storeLeads(leads){ const k='r'+(rowIdx++); ROWS[k]=leads; return k; }
 
 function uniq(f){return[...new Set(RAW.map(r=>r[f]))].filter(Boolean).sort((a,b)=>a.localeCompare(b))}
-let U={city:[],source:[],tele:[],bde:[]};
+let U={city:uniq('city'),source:uniq('source'),tele:uniq('tele'),bde:uniq('bde')};
 const sel={fc:new Set(U.city),fs:new Set(U.source),ft:new Set(U.tele),fb:new Set(U.bde)};
 let dim1='overall',dim2='overall',dateAnchor='fwd_date',selMonth=null,sortCol=1,sortDir=-1;
 let mtdDay=31;
+let mtdUserDay=null; // remembers last manually dragged value; null = not yet set by user
 const DL={overall:'Overall',city:'City',source:'Source',tele:'Tele-Agent',bde:'BDE Agent'};
 
 // ── MTD ──────────────────────────────────────────────────────────────
@@ -367,17 +448,24 @@ function updateMtdSlider(){
     ctrl.style.display='flex';
     const days=getDaysInMonth(selMonth);
     slider.max=days; maxLbl.textContent=days;
-    const todayYM=new Date().toISOString().slice(0,7);
-    if(selMonth===todayYM){ slider.value=Math.min(new Date().getDate(),days); }
-    else { slider.value=days; }
+    if(mtdUserDay!==null){
+      // User has manually set a day — restore it (capped to this month's max)
+      slider.value=Math.min(mtdUserDay,days);
+    } else {
+      // First time showing — auto-default to today if current month, else max
+      const todayYM=new Date().toISOString().slice(0,7);
+      slider.value=(selMonth===todayYM)?Math.min(new Date().getDate(),days):days;
+    }
     mtdDay=parseInt(slider.value);
     updateMtdPill();
   } else {
     ctrl.style.display='none'; mtdDay=31;
+    // Only clear user preference when anchor changes away from meet_date
   }
 }
 function onMtdSlide(){
   mtdDay=parseInt(document.getElementById('mtdSlider').value);
+  mtdUserDay=mtdDay; // remember this as the user's explicit choice
   updateMtdPill(); render();
 }
 function updateMtdPill(){
@@ -427,6 +515,7 @@ function pickAnchor(val,lbl){
   document.querySelectorAll('#dAdrop .cs-item').forEach(el=>el.classList.toggle('active',el.dataset.val===val));
   document.getElementById('dAbtn').textContent=lbl;
   if(selMonth&&!AM[val].includes(selMonth))selMonth=null;
+  if(val!=='meet_date') mtdUserDay=null; // clear memory when leaving meet_date anchor
   closeAll();buildMonthStrip();updateCohortBar();updateMtdSlider();render();
 }
 function pickDim(n,val,lbl){
@@ -470,7 +559,7 @@ function msAll(id){const all=MC[id].all();sel[id]=sel[id].size===all.length?new 
 function updateMSLbl(id){const all=MC[id].all();const n=sel[id].size;document.getElementById(MC[id].lbl).innerHTML=n===all.length?MC[id].def:`<span class="badge">${n}</span> selected`;}
 function resetAll(){
   Object.keys(MC).forEach(id=>{sel[id]=new Set(MC[id].all());buildMS(id);updateMSLbl(id);});
-  selMonth=null;mtdDay=31;
+  selMonth=null;mtdDay=31;mtdUserDay=null;
   pickAnchor('fwd_date','Forwarded Date');
   pickDim(1,'overall','Overall');pickDim(2,'overall','Overall');
   updateMtdSlider();
@@ -710,110 +799,228 @@ function render(){
 }
 function srt(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}render();}
 
-// Init — called after data loads
-function initApp(){
+function initAD(){
   U={city:uniq('city'),source:uniq('source'),tele:uniq('tele'),bde:uniq('bde')};
   sel.fc=new Set(U.city);sel.fs=new Set(U.source);sel.ft=new Set(U.tele);sel.fb=new Set(U.bde);
   Object.keys(MC).forEach(id=>{buildMS(id);updateMSLbl(id);});
-  buildMonthStrip();
-  updateMtdSlider();
-  render();
+  buildMonthStrip(); updateMtdSlider(); render();
 }
-// ── Live data loader ─────────────────────────────────────────────────
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1912717860&single=true&output=csv';
-const MN_STATIC = {"2025-09": "Sep 25", "2025-10": "Oct 25", "2025-11": "Nov 25", "2025-12": "Dec 25", "2026-01": "Jan 26", "2026-02": "Feb 26", "2026-03": "Mar 26", "2026-04": "Apr 26", "2026-05": "May 26", "2026-06": "Jun 26", "2026-07": "Jul 26", "2026-08": "Aug 26", "2026-09": "Sep 26", "2026-10": "Oct 26", "2026-11": "Nov 26", "2026-12": "Dec 26", "2027-01": "Jan 27", "2027-02": "Feb 27", "2027-03": "Mar 27"};
-
-function parseDate(s){
-  if(!s||!s.trim())return null; s=s.trim();
-  if(s.match(/^\d{4}-\d{2}-\d{2}/))return s.slice(0,10);
-  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return m?`${m[3]}-${m[2]}-${m[1]}`:null;
-}
-function parseTat(meet,visit){
-  if(!meet||!visit)return null;
-  const d1=new Date(meet),d2=new Date(visit);
-  return isNaN(d1)||isNaN(d2)?null:Math.round((d2-d1)/86400000);
-}
-function parseCSV(text){
-  const lines=text.split(/\r?\n/);
-  const headers=lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
-  const records=[];
-  for(let i=1;i<lines.length;i++){
-    const line=lines[i]; if(!line.trim())continue;
-    const cols=[];let cur='',inQ=false;
-    for(let c=0;c<line.length;c++){
-      const ch=line[c];
-      if(ch==='"'){inQ=!inQ;}
-      else if(ch===','&&!inQ){cols.push(cur);cur='';}
-      else cur+=ch;
-    }
-    cols.push(cur);
-    const r={};
-    headers.forEach((h,idx)=>r[h]=(cols[idx]||'').replace(/^"|"$/g,'').trim());
-    const fwd=parseDate(r['forwarded_Spoors - AD']||'');
-    if(!fwd)continue;
-    const meet=parseDate(r['Meeting Date - forward lead']||'');
-    const fv=parseDate(r['First Visit Date']||'');
-    const cv=parseDate(r['lead_converted_at']||'');
-    const cm1=(r['CM Meetings Remarks']||'').trim();
-    const cm2=(r['CM Remark']||'').trim();
-    records.push({
-      city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
-      source:(r['Source']||'').trim()||'(blank)',
-      tele:(r['forwarded_by']||'').trim()||'(blank)',
-      bde:(r['agent_mail']||'').trim()||'(blank)',
-      met:(r['Visited']||'').trim().toUpperCase()==='TRUE'?1:0,
-      verified:(r['Verified?']||'').trim()==='Business Verified'?1:0,
-      fwd_date:fwd, meet_date:meet||'', fv_date:fv||'', cv_date:cv||'',
-      tat:parseTat(meet,fv),
-      phone:(r['Lead Phone']||'').trim(),
-      biz_name:(r['business_name']||'').trim(),
-      remark:(r['Tele-Agent Remark - forward lead']||'').trim(),
-      cm_remark:[cm1,cm2].filter(Boolean).join(' | '),
-      tl:(r['team_lead_email']||'').trim(),
-      row_num:i+1,
-    });
-  }
-  return records;
-}
-function computeMonthMeta(recs){
-  const f=field=>[...new Set(recs.map(r=>r[field].slice(0,7)).filter(Boolean))].sort();
-  const fwd=f('fwd_date'),meet=f('meet_date'),fv=f('fv_date');
-  const all=[...new Set([...fwd,...meet,...fv])].sort();
-  const mn={};
-  all.forEach(mo=>{mn[mo]=MN_STATIC[mo]||mo;});
-  return{fwd,meet,fv,all,mn};
-}
-async function loadData(){
-  const loader=document.getElementById('loaderOverlay');
-  const main=document.getElementById('mainWrap');
-  loader.style.display='flex'; main.style.display='none';
-  try{
-    const res=await fetch(CSV_URL);
-    if(!res.ok)throw new Error('HTTP '+res.status);
-    const text=await res.text();
-    const parsed=parseCSV(text);
-    RAW.push(...parsed);
-    const meta=computeMonthMeta(RAW);
-    AM.fwd_date=meta.fwd; AM.meet_date=meta.meet; AM.fv_date=meta.fv;
-    ALL_M.push(...meta.all);
-    Object.assign(MN,meta.mn);
-    document.getElementById('refreshedAt').textContent=
-      'Live · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    loader.style.display='none'; main.style.display='block';
-    initApp();
-  }catch(e){
-    loader.innerHTML=`<div style="text-align:center;padding:40px 24px">
-      <div style="font-size:1.1rem;color:var(--cv);margin-bottom:8px">⚠ Could not load data</div>
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:16px">${e.message}</div>
-      <a href="javascript:location.reload()" style="color:var(--acc);font-size:.8rem">↺ Try again</a>
-    </div>`;
-  }
-}
-loadData();
 
 </script>
-</div><!-- /mainWrap -->
+<script>
 
+let AN=[],AN_MN={},AN_ALL_MONTHS=[];
+const MN_AN={"2026-10":"Oct 26","2026-11":"Nov 26","2026-12":"Dec 26","2027-01":"Jan 27"};
+async function loadANData(){
+  const res=await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRNLzHqfYJXOGENDezsyN_Ad-iIgKcVE-eysgkZesaRbP9zeD4OVGfeI39gB3a3sH_NjT6wf1BGSysd/pub?gid=1047036629&single=true&output=csv');
+  const text=await res.text();
+  const rows=rfc4180(text);
+  const hdr=rows[0].map(h=>h.trim());
+  for(let i=1;i<rows.length;i++){
+    const cols=rows[i];if(cols.every(c=>!c.trim()))continue;
+    const r={};hdr.forEach((h,j)=>r[h]=(cols[j]||'').trim());
+    const ld=pd(r['Lead Created Date']);
+    if(!ld||ld<'2026-10-27')continue;
+    const phone=(r['Customer Number']||'').replace(/\D/g,'');
+    if(phone.length!==10)continue;
+    const cv=pd(r['Converted Date']);
+    const b=r['Bucket']||'';
+    const bucket=b==='Hot'?'Hot':b==='Cold'?'Cold':b==='Fake'?'Fake':b==='No Outcome'?'No Outcome':b==='Not Connected'?'Not Connected':'Other';
+    AN.push({
+      lead_month:ld.slice(0,7),lead_date:ld,
+      city:(r['City']||'').trim().replace(/\b\w/g,c=>c.toUpperCase())||'(blank)',
+      bde:(r['BDE Email']||'').trim()||'(blank)',
+      customer:(r['Customer Name']||'').trim(),phone,
+      pushed:r['Pushed At']?1:0,
+      connected:r['Connected']==='1'||r['Connected']===1?1:0,
+      hot:bucket==='Hot'?1:0,cold:bucket==='Cold'?1:0,
+      fake:bucket==='Fake'?1:0,no_outcome:bucket==='No Outcome'?1:0,
+      not_connected:bucket==='Not Connected'?1:0,
+      bucket,fake_flag:r['Fake Flag']==='Yes'?1:0,
+      cv_date:cv||'',cv_month:cv?cv.slice(0,7):'',converted:cv?1:0,
+      conv_after_call:r['Converted After Call']==='Yes'?1:0,
+      spoors_link:(r['Spoors Link']||'').trim(),
+      source_id:r['Spoors Ref ID']||'',
+      attempts:parseInt(r['Attempts']||0),
+      call_outcome:(r['Call Outcome']||'').trim(),
+    });
+  }
+  const months=[...new Set(AN.map(r=>r.lead_month).filter(Boolean))].sort();
+  AN_ALL_MONTHS.push(...months);
+  months.forEach(m=>{AN_MN[m]=MN_AN[m]||m;});
+}
+  if (anDim === 'overall') {
+    rows = [{ label:'Overall', recs, cvRecs, pushed, conn, not_conn, hot, cold, fake, no_out }];
+  } else {
+    const vm = {};
+    recs.forEach(r => {
+      const k = anDim==='city' ? r.city : anDim==='month' ? (AN_MN[r.lead_month]||r.lead_month) : r.bde;
+      if (!vm[k]) vm[k] = { label:k, recs:[], pushed:0, conn:0, not_conn:0, hot:0, cold:0, fake:0, no_out:0 };
+      vm[k].recs.push(r);
+      vm[k].pushed += r.pushed; vm[k].conn += r.connected;
+      vm[k].not_conn += r.not_connected; vm[k].hot += r.hot;
+      vm[k].cold += r.cold; vm[k].fake += r.fake; vm[k].no_out += r.no_outcome;
+    });
+    const cm = {};
+    cvRecs.forEach(r => {
+      const k = anDim==='city' ? r.city : anDim==='month' ? (AN_MN[r.lead_month]||r.lead_month) : r.bde;
+      if (!cm[k]) cm[k] = [];
+      cm[k].push(r);
+    });
+    const keys = new Set([...Object.keys(vm), ...Object.keys(cm)]);
+    rows = [...keys].map(k => ({ ...(vm[k]||{label:k,recs:[],pushed:0,conn:0,not_conn:0,hot:0,cold:0,fake:0,no_out:0}), cvRecs:cm[k]||[] }));
+  }
+
+  // Sort
+  const SK = ['label','pushed','conn','not_conn',null,'hot','cold','fake','no_out','conv'];
+  rows.sort((a,b) => {
+    const col = anSortCol;
+    if (col === 4) return 0;
+    const kk = col === 9 ? null : SK[col];
+    if (col === 9) {
+      const av = (a.cvRecs||[]).length, bv = (b.cvRecs||[]).length;
+      return anSortDir*(av-bv);
+    }
+    if (!kk) return 0;
+    if (col===0 && anDim==='month') {
+      const am = Object.keys(AN_MN).find(x=>AN_MN[x]===a.label)||a.label;
+      const bm = Object.keys(AN_MN).find(x=>AN_MN[x]===b.label)||b.label;
+      return anSortDir*am.localeCompare(bm);
+    }
+    const av=a[kk], bv=b[kk];
+    return typeof av==='string' ? anSortDir*av.localeCompare(bv) : anSortDir*(av-bv);
+  });
+
+  function ach(i,t) {
+    return `<th onclick="anSrt(${i})" style="text-align:right" class="${anSortCol===i?(anSortDir===-1?'sd':'sa'):''} ${i===0?'left':''}">${t}</th>`;
+  }
+
+  document.getElementById('an-colgroup').innerHTML =
+    '<col style="width:185px"><col style="width:78px"><col style="width:78px"><col style="width:95px"><col style="width:85px">' +
+    '<col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:82px"><col style="width:70px">';
+
+  document.getElementById('an-thead').innerHTML = `<tr>
+    ${ach(0, anDim==='bde'?'BDE Agent':anDim==='month'?'Month':'Dimension')}
+    ${ach(1,'Pushed')} ${ach(2,'Connected')} ${ach(3,'Not Conn')}
+    <th style="text-align:left;font-size:.58rem">Conn%</th>
+    ${ach(5,'Hot')} ${ach(6,'Cold')} ${ach(7,'Fake')} ${ach(8,'No Outcome')} ${ach(9,'Conv ★')}
+  </tr>`;
+
+  function dlSpan(key, val, color) {
+    return `<span onclick="anDrill('${key}')" style="color:${color};font-family:var(--mono);cursor:pointer;text-decoration:underline;text-decoration-style:dotted">${anFmt(val)}</span>`;
+  }
+
+  document.getElementById('an-tbody').innerHTML = rows.map(r => {
+    const cr = r.cvRecs || [];
+    const kAll  = anStore(r.recs||[]);
+    const kHot  = anStore((r.recs||[]).filter(x=>x.hot));
+    const kCold = anStore((r.recs||[]).filter(x=>x.cold));
+    const kFake = anStore((r.recs||[]).filter(x=>x.fake));
+    const kNc   = anStore((r.recs||[]).filter(x=>x.not_connected));
+    const kNo   = anStore((r.recs||[]).filter(x=>x.no_outcome));
+    const kCv   = anStore(cr);
+    return `<tr>
+      <td class="dc left" title="${r.label}">${r.label}</td>
+      <td>${dlSpan(kAll, r.pushed, 'var(--acc)')}</td>
+      <td style="font-family:var(--mono);text-align:right">${anFmt(r.conn)}</td>
+      <td>${dlSpan(kNc, r.not_conn, 'var(--muted)')}</td>
+      <td>${anBar(anPct(r.conn,r.pushed),'var(--met)')}</td>
+      <td>${dlSpan(kHot, r.hot, '#34c47a')}</td>
+      <td>${dlSpan(kCold, r.cold, '#60a5fa')}</td>
+      <td>${dlSpan(kFake, r.fake, '#f87171')}</td>
+      <td>${dlSpan(kNo, r.no_out, 'var(--muted)')}</td>
+      <td>${dlSpan(kCv, cr.length, 'var(--cv)')}</td>
+    </tr>`;
+  }).join('');
+
+  const kTot   = anStore(recs);
+  const kTotCv = anStore(cvRecs);
+  const kTotNc = anStore(recs.filter(x=>x.not_connected));
+  document.getElementById('an-tfoot').innerHTML = `<tr>
+    <td class="left">TOTAL</td>
+    <td>${dlSpan(kTot, pushed, 'var(--acc)')}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700">${anFmt(conn)}</td>
+    <td>${dlSpan(kTotNc, not_conn, 'var(--muted)')}</td>
+    <td>${anBar(anPct(conn,pushed),'var(--met)')}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#34c47a">${anFmt(hot)}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#60a5fa">${anFmt(cold)}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:#f87171">${anFmt(fake)}</td>
+    <td style="font-family:var(--mono);text-align:right;font-weight:700;color:var(--muted)">${anFmt(no_out)}</td>
+    <td>${dlSpan(kTotCv, conv, 'var(--cv)')}</td>
+  </tr>`;
+
+  document.getElementById('an-statln').textContent =
+    `${rows.length} rows · ${anFmt(pushed)} pushed · ${anFmt(audited)} audited · Conv ★ = closes in period · click any underlined number to drill down`;
+}
+
+function anSrt(col) { if(anSortCol===col) anSortDir*=-1; else {anSortCol=col;anSortDir=-1;} anRender(); }
+
+// ── Drill-down — reuses the existing AD modal ─────────────────────────
+function anDrill(key) {
+  const leads = AN_ROWS[key] || [];
+  modalAll = leads.map(r => ({
+    biz_name:  r.customer,
+    phone:     r.phone || '',
+    city:      r.city,
+    source:    r.bucket + (r.fake_flag ? '  ⚑ Flagged' : ''),
+    tele:      '',
+    bde:       r.bde,
+    fwd_date:  r.lead_date || '',
+    meet_date: '',
+    fv_date:   '',
+    cv_date:   r.cv_date || '',
+    met:       r.connected,
+    verified:  r.hot || r.cold,
+    tat:       null,
+    remark:    r.call_outcome || '',
+    cm_remark: r.spoors_link ? 'Spoors: ' + r.spoors_link : '',
+    row_num:   r.source_id,
+  }));
+  document.getElementById('modalTitle').innerHTML = `<span style="color:var(--acc)">${leads.length} leads</span>`;
+  document.getElementById('modalSub').textContent =
+    (anSelMonth ? AN_MN[anSelMonth]||anSelMonth : 'All months') + ' · AI Audited Leads (Ananya)';
+  document.getElementById('modalSearch').value = '';
+  renderModalRows(modalAll);
+  document.getElementById('modalBg').classList.add('open');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+function initAN(){
+  anSelCity=new Set(anUniq('city'));
+  anBuildCityMS(); anBuildStrip(); anRender();
+}
+
+</script>
+
+<script>
+function switchTab(id){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelector(`.tab-btn[onclick="switchTab('${id}')"]`).classList.add('active');
+}
+</script>
+</div><!-- /mainWrap -->
+<script>
+async function loadAll(){
+  const loader=document.getElementById('loaderOverlay');
+  const main=document.getElementById('mainWrap');
+  loader.style.display='flex';main.style.display='none';
+  try{
+    document.getElementById('loaderStatus').textContent='Loading AD Forwarded Leads…';
+    await loadADData();
+    document.getElementById('loaderStatus').textContent='Loading AI Audit data…';
+    await loadANData();
+    loader.style.display='none';main.style.display='block';
+    document.getElementById('refreshedAt').textContent=
+      'Live · '+new Date().toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    initAD();initAN();
+  }catch(e){
+    document.getElementById('loaderStatus').innerHTML=
+      'Error: '+e.message+' — <a href="javascript:location.reload()" style="color:var(--acc)">Retry</a>';
+  }
+}
+loadAll();
+</script>
 </body>
 </html>
